@@ -15,30 +15,63 @@ class Program(object):
         self.source = source
         self.proc_div = proc_div
 
+    def __str__(self):
+        return str(self.proc_div)
+
+
 class ProcedureDivision(object):
     def __init__(self, source):
         self.source = source
         self.first_section = None
+        self.sections = {}
+
+    def __str__(self):
+        sections = list(self.sections.values())
+        sections.sort(key = lambda s: s.source.from_line)
+        return '\n\n'.join([str(s) for s in sections])
+
 
 class Section(object):
     def __init__(self, name, source):
         self.name = name
         self.source = source
         self.first_para = None
+        self.paras = {}
+
+    def __str__(self):
+        paras = list(self.paras.values())
+        paras.sort(key = lambda p: p.source.from_line)
+        return '{:5d}  {} section.\n{}'.format(
+            self.source.from_line, self.name,
+            '\n'.join([str(p) for p in paras]))
+
 
 class Paragraph(object):
     def __init__(self, name, source, section):
         self.name = name
         self.source = source
         self.section = section
-        self.first_stmt = None
+        self.first_sentence = None
+        self.sentences = []
         self.next_para = None
+
+    def __str__(self):
+        return '{:5d}  {}.\n{}'.format(
+            self.source.from_line, self.name,
+            '\n'.join([str(s) for s in self.sentences]))
+
 
 class Sentence(object):
     def __init__(self, source, para):
         self.source = source
         self.para = para
+        self.first_stmt = None
+        self.stmts = []
         self.next_sentence = None
+
+    def __str__(self):
+        return '\n'.join([str(s) for s in self.stmts])
+
 
 class Statement(object):
     def __init__(self, source, sentence):
@@ -46,23 +79,49 @@ class Statement(object):
         self.sentence = sentence
         self.prev_stmts = []
 
+    def __str__(self):
+        return '{:5d}      {}'.format(self.source.from_line, self.__class__.__name__)
+
+
 class BranchStatement(Statement):
     def __init__(self, source, sentence):
-        super(BranchStatement, this).__init__(source, sentence)
-        self.expression = None
+        super(BranchStatement, self).__init__(source, sentence)
+        self.condition = None
         self.true_stmt = None
         self.false_stmt = None
 
-class GoToStatement(Statement):
-    def __init__(self, source, sentence, target_name):
-        super(BranchStatement, this).__init__(source, sentence)
-        self.target_name = target_name
-        self.target_stmt = None
+    def __str__(self):
+        return '{:5d}      branch -> then {} else {}'.format(
+            self.source.from_line, self.true_stmt.source.from_line, self.false_stmt.source.from_line)
 
-class NonFlowStatement(Statement):
+
+class SequentialStatement(Statement):
     def __init__(self, source, sentence):
-        super(NonFlowStatement, this).__init__(source, sentence)
+        super(SequentialStatement, self).__init__(source, sentence)
         self.next_stmt = None
+
+    def __str__(self):
+        return '{:5d}      {} -> {}'.format(self.source.from_line, self.__class__.__name__, self.next_stmt.source.from_line)
+
+
+class GoToStatement(SequentialStatement):
+    def __init__(self, source, sentence, para_name):
+        super(GoToStatement, self).__init__(source, sentence)
+        self.para_name = para_name
+
+
+class NextSentenceStatement(SequentialStatement):
+    pass
+
+class MoveStatement(SequentialStatement):
+    pass
+
+class PerformSectionStatement(SequentialStatement):
+    def __init__(self, source, sentence, section_name):
+        super(PerformSectionStatement, self).__init__(source, sentence)
+        self.section_name = section_name
+        self.section = None
+
 
 class TerminatingStatement(Statement):
     pass
