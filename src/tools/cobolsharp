@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+# Hey Emacs, this is -*-python-*-
+
+from CobolSharp import *
+
+import sys
+
+def main():
+    source = sys.argv[1]
+    program = parse(open(source, 'rt'))
+    print(program)
+
+if __name__ == '__main__':
+    main()
