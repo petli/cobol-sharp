@@ -30,6 +30,10 @@ setup(
         'data/'
     ],
 
+    install_requires = [
+        'networkx ~= 1.11',
+    ],
+
     setup_requires = [
         "setuptools_git",
     ],

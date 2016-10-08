@@ -141,20 +141,20 @@ class ProgramParser(object):
             para = self._parse_para(self._virtual_element('paragraph', sentence_els), section, para)
             section.paras[para.name] = para
 
+        section.first_para = para
+
         # Resolve gotos
         for stmt in self._goto_stmts:
             try:
-                para = section.paras[stmt.para_name]
+                target_para = section.paras[stmt.para_name]
             except KeyError:
                 raise ParserError('line {}: undefined go to target paragraph: {}'.format(
                     stmt.source.from_line, stmt.para_name))
 
-            # TODO: handle empty paragraphs
-            stmt.next_stmt = para.first_sentence.first_stmt
+            stmt.next_stmt = target_para.get_first_stmt()
 
         self._goto_stmts = []
 
-        section.first_para = para
         return section
 
 

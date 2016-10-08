@@ -10,5 +10,15 @@ def main():
     program = parse(open(source, 'rt'))
     print(program)
 
+    for section in program.proc_div.sections_in_order():
+        print()
+        print(section.name)
+
+        full_graph = section_stmt_graph(section)
+        print_graph_stmts(full_graph)
+
+        reachable = reachable_stmt_graph(full_graph)
+        print_graph_stmts(reachable)
+
 if __name__ == '__main__':
     main()

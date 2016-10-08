@@ -12,13 +12,21 @@
            move 'x' to a
        main-do.
            perform sub.
+           go to main-exit.
+       unused.
+           perform unused.
        main-exit.
            exit program.
 
        sub section.
        sub-start.
-           if a = 'x'
-               next sentence
+           if a not = 'x'
+               if a = 'y'
+                   move 0 to b
+                   go to sub-exit
+                   perform unused
+               else
+                   next sentence
            else
                move 1 to b
                go to sub-exit.

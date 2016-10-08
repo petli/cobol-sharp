@@ -25,10 +25,13 @@ class ProcedureDivision(object):
         self.first_section = None
         self.sections = {}
 
-    def __str__(self):
+    def sections_in_order(self):
         sections = list(self.sections.values())
-        sections.sort(key = lambda s: s.source.from_line)
-        return '\n\n'.join([str(s) for s in sections])
+        sections.sort(key = lambda s: s.source.from_char)
+        return sections
+
+    def __str__(self):
+        return '\n\n'.join([str(s) for s in self.sections_in_order()])
 
 
 class Section(object):
@@ -38,12 +41,22 @@ class Section(object):
         self.first_para = None
         self.paras = {}
 
+    def get_first_stmt(self):
+        if self.first_para:
+            return self.first_para.get_first_stmt()
+
+        raise RuntimeError("Empty section doesn't have a first statement")
+
+    def paras_in_order(self):
+        para = self.first_para
+        while para:
+            yield para
+            para = para.next_para
+
     def __str__(self):
-        paras = list(self.paras.values())
-        paras.sort(key = lambda p: p.source.from_line)
         return '{:5d}  {} section.\n{}'.format(
             self.source.from_line, self.name,
-            '\n'.join([str(p) for p in paras]))
+            '\n'.join([str(p) for p in self.paras_in_order()]))
 
 
 class Paragraph(object):
@@ -54,6 +67,15 @@ class Paragraph(object):
         self.first_sentence = None
         self.sentences = []
         self.next_para = None
+
+    def get_first_stmt(self):
+        if self.first_sentence:
+            return self.first_sentence.first_stmt
+
+        if self.next_para:
+            return self.next_para.get_first_stmt()
+
+        raise RuntimeError("Last paragraph in section is empty, cannot find first statement")
 
     def __str__(self):
         return '{:5d}  {}.\n{}'.format(
@@ -77,7 +99,6 @@ class Statement(object):
     def __init__(self, source, sentence):
         self.source = source
         self.sentence = sentence
-        self.prev_stmts = []
 
     def __str__(self):
         return '{:5d}      {}'.format(self.source.from_line, self.__class__.__name__)
