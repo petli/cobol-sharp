@@ -4,6 +4,7 @@
 from CobolSharp import *
 
 import sys
+import networkx as nx
 
 def main():
     source = sys.argv[1]
@@ -12,13 +13,19 @@ def main():
 
     for section in program.proc_div.sections_in_order():
         print()
-        print(section.name)
+        print(section.name, 'section.')
 
         full_graph = section_stmt_graph(section)
-        print_graph_stmts(full_graph)
+#        print_graph_stmts(full_graph)
+#        nx.nx_agraph.write_dot(full_graph, '{}_full.dot'.format(section.name))
 
         reachable = reachable_stmt_graph(full_graph)
-        print_graph_stmts(reachable)
+#        print_graph_stmts(reachable)
+#        nx.nx_agraph.write_dot(reachable, '{}_reachable_graph.dot'.format(section.name))
+
+        branch_join = branch_join_graph(reachable)
+        print_branch_join_graph(branch_join)
+#        nx.nx_agraph.write_dot(branch_join, '{}_branch_join.dot'.format(section.name))
 
 if __name__ == '__main__':
     main()
