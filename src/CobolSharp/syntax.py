@@ -10,6 +10,10 @@ class Source(object):
         self.from_column = from_column
         self.to_column = to_column
 
+    def __str__(self):
+        return self.text[self.from_char : self.to_char + 1]
+
+
 class Program(object):
     def __init__(self, source, proc_div):
         self.source = source
@@ -95,7 +99,7 @@ class Sentence(object):
         return '\n'.join([str(s) for s in self.stmts])
 
 
-class Statement(object):
+class CobolStatement(object):
     def __init__(self, source, sentence):
         self.source = source
         self.sentence = sentence
@@ -104,7 +108,7 @@ class Statement(object):
         return '{:5d}      {}'.format(self.source.from_line, self.__class__.__name__)
 
 
-class BranchStatement(Statement):
+class BranchStatement(CobolStatement):
     def __init__(self, source, sentence):
         super(BranchStatement, self).__init__(source, sentence)
         self.condition = None
@@ -116,7 +120,7 @@ class BranchStatement(Statement):
             self.source.from_line, self.true_stmt.source.from_line, self.false_stmt.source.from_line)
 
 
-class SequentialStatement(Statement):
+class SequentialStatement(CobolStatement):
     def __init__(self, source, sentence):
         super(SequentialStatement, self).__init__(source, sentence)
         self.next_stmt = None
@@ -144,7 +148,7 @@ class PerformSectionStatement(SequentialStatement):
         self.section = None
 
 
-class TerminatingStatement(Statement):
+class TerminatingStatement(CobolStatement):
     pass
 
 class ExitSectionStatement(TerminatingStatement):

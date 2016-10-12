@@ -1,7 +1,5 @@
 # Copyright 2016 Peter Liljenberg <peter.liljenberg@gmail.com>
 
-import sys
-
 import networkx as nx
 from .syntax import *
 
@@ -76,12 +74,28 @@ def reachable_stmt_graph(graph):
 
 
 def branch_join_graph(stmt_graph):
-    """Convert a graph of statements into a MultiDiGraph only containing Entry,
-    Exit, Branch and Join nodes, with all non-branching statements contained
-    in lists on the edge attribute 'stmts'.
-    """
-    branch_graph = nx.MultiDiGraph()
+    """Convert a graph of statements into a MultiDiGraph.
 
+    The edges between the nodes holds the sequential cobol statements in the
+    edge attribute 'stmts'.  This may be an empty list, but it is always present.
+
+    The nodes are one of:
+
+    ## Entry singleton:
+    Start of execution. No in edges, one out edge.
+
+    ## Exit singleton:
+    End of execution.  At least one in edge, no out edges.
+
+    ## Branch instances:
+    At least one in edge, two out edges.  The out edges are identified by the attributes
+    condition=True and condition=False, respectively.
+
+    ## Join instances:
+    At least two in edges, one out edge.
+    """
+
+    branch_graph = nx.MultiDiGraph()
     branch_nodes = []
     join_nodes = []
     node_stmts = {}

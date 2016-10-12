@@ -2,6 +2,7 @@
 # Hey Emacs, this is -*-python-*-
 
 from CobolSharp import *
+from CobolSharp.structure import Method
 
 import sys
 import networkx as nx
@@ -10,6 +11,8 @@ def main():
     source = sys.argv[1]
     program = parse(open(source, 'rt'))
     print(program)
+
+    formatter = PythonishFormatter(TextOutputter(sys.stdout))
 
     for section in program.proc_div.sections_in_order():
         print()
@@ -24,8 +27,15 @@ def main():
 #        nx.nx_agraph.write_dot(reachable, '{}_reachable_graph.dot'.format(section.name))
 
         branch_join = branch_join_graph(reachable)
-        print_branch_join_graph(branch_join)
+#        print_branch_join_graph(branch_join)
 #        nx.nx_agraph.write_dot(branch_join, '{}_branch_join.dot'.format(section.name))
+
+        block = branch_join_graph_to_block(branch_join)
+
+        formatter.format_method(Method(section, block))
+
+
+
 
 if __name__ == '__main__':
     main()
