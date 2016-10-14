@@ -6,13 +6,15 @@ from .syntax import *
 from .structure import *
 
 
-def branch_join_graph_to_block(graph):
+suppressed_cobol_statements = (GoToStatement, TerminatingStatement, NextSentenceStatement)
+
+def branch_join_graph_to_block(graph, keep_all_cobol_stmts=False):
     # TODO: resolve loops to translate into DAG
 
     edges = graph.out_edges(Entry, data=True)
     assert len(edges) == 1
 
-    redux = BlockReduction(graph, edges[0])
+    redux = BlockReduction(graph, edges[0], keep_all_cobol_stmts=keep_all_cobol_stmts)
     redux.resolve_tail_nodes()
 
     return redux.block
@@ -20,16 +22,17 @@ def branch_join_graph_to_block(graph):
 
 
 class BlockReduction(object):
-    def __init__(self, graph, start_edge, reduced_joins = None, traverse_first_edge=False):
+    def __init__(self, graph, start_edge, keep_all_cobol_stmts, reduced_joins = None, traverse_first_edge=False, ):
         self._graph = graph
         self._reduced_joins = reduced_joins if reduced_joins is not None else {}
+        self._keep_all_cobol_stmts = keep_all_cobol_stmts
         self.block = Block()
 
         # Map from non-reducible nodes to the sub-blocks pointing to them
         self.tail_nodes = {}
 
         src, dest, data = start_edge
-        self.block.stmts.extend(data['stmts'])
+        self._add_statements(data['stmts'])
 
         skip_join_check = traverse_first_edge
 
@@ -66,7 +69,9 @@ class BlockReduction(object):
 
             # Fake an input edge to this node so it can be reduced
             edge = (None, node, {'stmts': []})
-            redux = BlockReduction(self._graph, edge, traverse_first_edge=True)
+            redux = BlockReduction(self._graph, edge,
+                                   keep_all_cobol_stmts=self._keep_all_cobol_stmts,
+                                   traverse_first_edge=True)
             node_reduxes[node] = redux
 
             if redux.dest_node is not Exit:
@@ -100,6 +105,12 @@ class BlockReduction(object):
             self.block.stmts.append(node_labels[node])
             self.block.stmts.extend(redux.block.stmts)
 
+    def _add_statements(self, stmts):
+        if not self._keep_all_cobol_stmts:
+            stmts = [s for s in stmts if not isinstance(s, suppressed_cobol_statements)]
+
+        self.block.stmts.extend(stmts)
+
 
     def _is_reduced_join(self, node):
         num_joins = self._reduced_joins.get(node, 0)
@@ -110,8 +121,14 @@ class BlockReduction(object):
         edges = self._graph.out_edges(branch, data=True)
         assert len(edges) == 2
 
-        then_redux = BlockReduction(self._graph, self._get_condition_edge(edges, True), self._reduced_joins)
-        else_redux = BlockReduction(self._graph, self._get_condition_edge(edges, False), self._reduced_joins)
+        then_redux = BlockReduction(self._graph,
+                                    self._get_condition_edge(edges, True),
+                                    keep_all_cobol_stmts=self._keep_all_cobol_stmts,
+                                    reduced_joins=self._reduced_joins)
+        else_redux = BlockReduction(self._graph,
+                                    self._get_condition_edge(edges, False),
+                                    keep_all_cobol_stmts=self._keep_all_cobol_stmts,
+                                    reduced_joins=self._reduced_joins)
         invert_condition = False
         tail_stmts = []
 
@@ -167,7 +184,7 @@ class BlockReduction(object):
         edges = self._graph.out_edges(node, data=True)
         assert len(edges) == 1
         n, next, data = edges[0]
-        self.block.stmts.extend(data['stmts'])
+        self._add_statements(data['stmts'])
         return next
 
     def _add_tail_node(self, node, block):

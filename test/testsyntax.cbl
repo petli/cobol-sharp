@@ -38,4 +38,4 @@
        unused section.
            move 3 to b.
        unused-exit.
-           exit.
+           exit

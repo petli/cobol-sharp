@@ -3,8 +3,6 @@
 from .structure import *
 from .syntax import *
 
-suppress_cobol_statements = (GoToStatement, TerminatingStatement, NextSentenceStatement)
-
 class PythonishFormatter(object):
     def __init__(self, output):
         self._output = output
@@ -58,9 +56,6 @@ class PythonishFormatter(object):
             elif isinstance(stmt, Return):
                 self._output.line('return')
                 self._output.line()
-
-            elif isinstance(stmt, suppress_cobol_statements):
-                pass
 
             elif isinstance(stmt, CobolStatement):
                 self._output.line(stmt.source, link=stmt.source.from_line)

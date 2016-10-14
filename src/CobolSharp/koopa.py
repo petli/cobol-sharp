@@ -70,7 +70,8 @@ class ProgramParser(object):
 
             stdout, stderr = process.communicate()
 
-            if process.returncode != 0:
+            # Doesn't seem to return an error exit code on parse errors...
+            if process.returncode != 0 or 'Error:' in stdout:
                 raise ParserError(stdout)
 
             self._tree = ET.parse(result_file.name)

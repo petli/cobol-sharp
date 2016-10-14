@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 
+import sys
 from setuptools import setup
+
+# From https://github.com/pypa/setuptools/blob/master/setup.py
+needs_pytest = set(['ptr', 'pytest', 'test']).intersection(sys.argv)
+pytest_runner = ['pytest-runner'] if needs_pytest else []
 
 setup(
     name = 'cobol-sharp',
@@ -24,6 +29,7 @@ setup(
         ],
     },
     include_package_data = True,
+    zip_safe = False,
 
     # The JAR must be unpacked
     eager_resources = [
@@ -34,7 +40,11 @@ setup(
         'networkx ~= 1.11',
     ],
 
+    tests_require = [
+        'pytest ~= 3.0.3'
+    ],
+
     setup_requires = [
         "setuptools_git",
-    ],
+    ] + pytest_runner,
 )
