@@ -1,5 +1,43 @@
 # Copyright 2016 Peter Liljenberg <peter.liljenberg@gmail.com>
 
+class _DummySource(object):
+    """This is only used to enable sorting of Entry/Exit with CobolStatements."""
+    def __init__(self, from_char):
+        self.from_char = from_char
+
+class _Entry(object):
+    def __str__(self):
+        return 'Entry'
+
+    source = _DummySource(-1)
+
+Entry = _Entry()
+
+class _Exit(object):
+    def __str__(self):
+        return 'Exit'
+
+    source = _DummySource(0x80000000)
+
+Exit = _Exit()
+
+
+class Branch(object):
+    def __init__(self, stmt):
+        self.stmt = stmt
+        self.source = stmt.source
+
+    def __str__(self):
+        return 'Branch {}'.format(self.stmt)
+
+class Join(object):
+    def __init__(self, stmt):
+        self.stmt = stmt
+        self.source = stmt.source
+
+    def __str__(self):
+        return 'Join {}'.format(self.source.from_line)
+
 class Method(object):
     def __init__(self, cobol_section, block):
         self.cobol_section = cobol_section

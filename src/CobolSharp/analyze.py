@@ -1,21 +1,11 @@
 # Copyright 2016 Peter Liljenberg <peter.liljenberg@gmail.com>
 
 import networkx as nx
-from .graph import *
 from .syntax import *
 from .structure import *
 
 
 suppressed_cobol_statements = (GoToStatement, TerminatingStatement, NextSentenceStatement)
-
-def branch_join_graph_to_block(graph, keep_all_cobol_stmts=False):
-    # TODO: resolve loops to translate into DAG
-
-    redux = BlockReduction(graph, start_node=Entry, keep_all_cobol_stmts=keep_all_cobol_stmts)
-    redux.resolve_tail_nodes()
-
-    return redux.block
-
 
 
 class BlockReduction(object):

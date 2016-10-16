@@ -2,84 +2,70 @@
 
 import networkx as nx
 from .syntax import *
+from .structure import *
+from .analyze import BlockReduction
 
-class _Entry(object):
-    def __str__(self):
-        return 'Entry'
-
-    source = Source('', -1, -1, -1, -1, -1, -1)
-
-Entry = _Entry()
-
-class _Exit(object):
-    def __str__(self):
-        return 'Exit'
-
-    source = Source('', 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000)
-
-Exit = _Exit()
-
-
-class Branch(object):
-    def __init__(self, stmt):
-        self.stmt = stmt
-        self.source = stmt.source
-
-    def __str__(self):
-        return 'Branch {}'.format(self.stmt)
-
-class Join(object):
-    def __init__(self, stmt):
-        self.stmt = stmt
-        self.source = stmt.source
-
-    def __str__(self):
-        return 'Join {}'.format(self.source.from_line)
-
-
-def section_stmt_graph(section):
-    """Translate a section into a directional graph of statements as nodes
-    including the Entry and Exit nodes.
+class StmtGraph(object):
+    """Holds a directional graph of statements as nodes including the
+    Entry and Exit nodes.
 
     Conditional edges are labeled with the attribution 'condition',
     whose value is either True or False.
+
+    If the graph itself needs to be referenced it is held in the
+    object property "graph".
     """
-    g = nx.DiGraph()
+    def __init__(self):
+        self.graph = nx.DiGraph()
 
-    for para in section.paras.values():
-        for sentence in para.sentences:
-            for stmt in sentence.stmts:
-                if isinstance(stmt, SequentialStatement):
-                    g.add_edge(stmt, stmt.next_stmt)
+    @classmethod
+    def from_section(cls, section):
+        """Translate a Cobol Section into a statement graph.
+        """
+        stmt_graph = cls()
+        g = stmt_graph.graph
 
-                elif isinstance(stmt, BranchStatement):
-                    g.add_edge(stmt, stmt.true_stmt, condition=True)
-                    g.add_edge(stmt, stmt.false_stmt, condition=False)
+        for para in section.paras.values():
+            for sentence in para.sentences:
+                for stmt in sentence.stmts:
+                    if isinstance(stmt, SequentialStatement):
+                        g.add_edge(stmt, stmt.next_stmt)
 
-                elif isinstance(stmt, TerminatingStatement):
-                    g.add_edge(stmt, Exit)
+                    elif isinstance(stmt, BranchStatement):
+                        g.add_edge(stmt, stmt.true_stmt, condition=True)
+                        g.add_edge(stmt, stmt.false_stmt, condition=False)
 
-                else:
-                    raise RuntimeError('Unexpected statement type: {}'.format(stmt))
+                    elif isinstance(stmt, TerminatingStatement):
+                        g.add_edge(stmt, Exit)
 
-    g.add_edge(Entry, section.get_first_stmt())
+                    else:
+                        raise RuntimeError('Unexpected statement type: {}'.format(stmt))
 
-    return g
+        g.add_edge(Entry, section.get_first_stmt())
 
-
-def reachable_stmt_graph(graph):
-    """Return the subgraph of graph only containing the reachable statements.
-    """
-    return nx.DiGraph(nx.edge_dfs(graph, Entry))
+        return stmt_graph
 
 
-def branch_join_graph(stmt_graph):
-    """Convert a graph of statements into a MultiDiGraph.
+    def reachable_subgraph(self):
+        """Return a new StmtGraph that only contains the nodes reachable from
+        Entry.
+        """
+        sub_graph = StmtGraph()
+        sub_graph.graph.add_edges_from(nx.edge_dfs(self.graph, Entry))
+        return sub_graph
 
-    The edges between the nodes holds the sequential cobol statements in the
-    edge attribute 'stmts'.  This may be an empty list, but it is always present.
 
-    The nodes are one of:
+    def print_stmts(self):
+        stmts = self.graph.nodes()
+        stmts.sort(key = lambda s: s.source.from_char)
+        for stmt in stmts:
+            print(stmt)
+
+
+class BranchJoinGraph(object):
+    """A MultiDiGraph representing the structure of a Cobol program.
+
+    Instead of statements, the graph nodes are one of:
 
     ## Entry singleton:
     Start of execution. No in edges, one out edge.
@@ -93,80 +79,92 @@ def branch_join_graph(stmt_graph):
 
     ## Join instances:
     At least two in edges, one out edge.
+
+    The edges between the nodes holds the sequential cobol statements in the
+    edge attribute 'stmts'.  This may be an empty list, but it is always present.
     """
 
-    branch_graph = nx.MultiDiGraph()
-    branch_nodes = []
-    join_nodes = []
-    node_stmts = {}
+    def __init__(self):
+        self.graph = nx.MultiDiGraph()
 
-    # Find all stmts that are branches or joins and wrap them
-    for stmt in stmt_graph:
-        if isinstance(stmt, BranchStatement):
-            n = Branch(stmt)
-            branch_nodes.append(n)
-            node_stmts[stmt] = n
+    @classmethod
+    def from_stmt_graph(cls, stmt_graph):
+        branch_join_graph = cls()
 
-        elif stmt is Exit:
-            node_stmts[Exit] = Exit
+        branch_nodes = []
+        join_nodes = []
+        node_stmts = {}
 
-        elif stmt_graph.in_degree(stmt) > 1:
-            n = Join(stmt)
-            join_nodes.append(n)
-            node_stmts[stmt] = n
+        # Find all stmts that are branches or joins and wrap them
+        for stmt in stmt_graph.graph:
+            if isinstance(stmt, BranchStatement):
+                n = Branch(stmt)
+                branch_nodes.append(n)
+                node_stmts[stmt] = n
 
-    # Add statements from Entry node
-    nbrs = stmt_graph.successors(Entry)
-    assert len(nbrs) == 1
-    _add_branch_edge(branch_graph, stmt_graph, node_stmts, Entry, nbrs[0])
+            elif stmt is Exit:
+                node_stmts[Exit] = Exit
 
-    # Add statements from each Branch node
-    for node in branch_nodes:
-        _add_branch_edge(branch_graph, stmt_graph, node_stmts, node, node.stmt.true_stmt, condition=True)
-        _add_branch_edge(branch_graph, stmt_graph, node_stmts, node, node.stmt.false_stmt, condition=False)
+            elif stmt_graph.graph.in_degree(stmt) > 1:
+                n = Join(stmt)
+                join_nodes.append(n)
+                node_stmts[stmt] = n
 
-    # Add statements from all join nodes,
-    for node in join_nodes:
-        # Temporarily drop it to avoid detecting false self-loop
-        del node_stmts[node.stmt]
-        _add_branch_edge(branch_graph, stmt_graph, node_stmts, node, node.stmt)
-        node_stmts[node.stmt] = node
-
-    return branch_graph
-
-
-def _add_branch_edge(branch_graph, stmt_graph, node_stmts, source_node, stmt, **attrs):
-    stmts = []
-    while stmt not in node_stmts:
-        stmts.append(stmt)
-        nbrs = stmt_graph.successors(stmt)
+        # Add statements from Entry node
+        nbrs = stmt_graph.graph.successors(Entry)
         assert len(nbrs) == 1
-        stmt = nbrs[0]
+        branch_join_graph._add_branch_edge(stmt_graph, node_stmts, Entry, nbrs[0])
 
-    attrs['stmts'] = stmts
-    branch_graph.add_edge(source_node, node_stmts[stmt], attr_dict=attrs)
+        # Add statements from each Branch node
+        for node in branch_nodes:
+            branch_join_graph._add_branch_edge(stmt_graph, node_stmts, node, node.stmt.true_stmt, condition=True)
+            branch_join_graph._add_branch_edge(stmt_graph, node_stmts, node, node.stmt.false_stmt, condition=False)
+
+        # Add statements from all join nodes,
+        for node in join_nodes:
+            # Temporarily drop it to avoid detecting false self-loop
+            del node_stmts[node.stmt]
+            branch_join_graph._add_branch_edge(stmt_graph, node_stmts, node, node.stmt)
+            node_stmts[node.stmt] = node
+
+        return branch_join_graph
 
 
-def print_graph_stmts(graph):
-    stmts = graph.nodes()
-    stmts.sort(key = lambda s: s.source.from_char)
-    for stmt in stmts:
-        print(stmt)
+    def _add_branch_edge(self, stmt_graph, node_stmts, source_node, stmt, **attrs):
+        stmts = []
+        while stmt not in node_stmts:
+            stmts.append(stmt)
+            nbrs = stmt_graph.graph.successors(stmt)
+            assert len(nbrs) == 1
+            stmt = nbrs[0]
+
+        attrs['stmts'] = stmts
+        self.graph.add_edge(source_node, node_stmts[stmt], attr_dict=attrs)
 
 
-def print_branch_join_graph(graph):
-    nodes = graph.nodes()
-    nodes.sort(key = lambda n: n.source.from_char)
-    for node in nodes:
-        print(node)
-        for n, next_node, data in graph.out_edges_iter(node, data=True):
-            if data.get('condition') == True:
-                print('True:')
-            elif data.get('condition') == False:
-                print('False:')
+    def print_nodes(self):
+        nodes = self.graph.nodes()
+        nodes.sort(key = lambda n: n.source.from_char)
+        for node in nodes:
+            print(node)
+            for n, next_node, data in self.graph.out_edges_iter(node, data=True):
+                if data.get('condition') == True:
+                    print('True:')
+                elif data.get('condition') == False:
+                    print('False:')
 
-            for stmt in data['stmts']:
-                print(stmt)
+                for stmt in data['stmts']:
+                    print(stmt)
 
-            print('-> {}'.format(next_node))
+                print('-> {}'.format(next_node))
 
+
+    def flatten_block(self, keep_all_cobol_stmts=False):
+        """Translate the graph structure to a Block of CobolStatement or
+        structure elements and return it.
+        """
+        # TODO: should be done on a DAG instead
+
+        redux = BlockReduction(self.graph, start_node=Entry, keep_all_cobol_stmts=keep_all_cobol_stmts)
+        redux.resolve_tail_nodes()
+        return redux.block

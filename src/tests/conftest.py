@@ -26,11 +26,11 @@ def cobol_block(request):
     program = parse(program_code_prefix + request.function.__doc__)
 
     section = program.proc_div.sections['test']
-    full_graph = section_stmt_graph(section)
-    reachable = reachable_stmt_graph(full_graph)
-    branch_join = branch_join_graph(reachable)
+    full_graph = StmtGraph.from_section(section)
+    reachable = full_graph.reachable_subgraph()
+    branch_join = BranchJoinGraph.from_stmt_graph(reachable)
 
-    return branch_join_graph_to_block(branch_join)
+    return branch_join.flatten_block()
 
 
 class ExpectedBlock:
