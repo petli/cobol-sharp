@@ -61,7 +61,15 @@ class ExpectedBlock:
             elif isinstance(s, If):
                 assert s.invert_condition == bs.invert_condition, 'Expected invert_condition {}, got {} at {}'.format(
                     s.invert_condition, bs.invert_condition, spath)
-                s.then_block.assert_block(bs.then_block, spath)
-                s.else_block.assert_block(bs.else_block, spath)
+                s.then_block.assert_block(bs.then_block, spath + ':then')
+                s.else_block.assert_block(bs.else_block, spath + ':else')
+
+            elif isinstance(s, Goto):
+                assert s.label.name == bs.label.name, 'Expected goto for label {}, got {} at {}'.format(
+                    s.label.name, bs.label.name, spath)
+
+            elif isinstance(s, GotoLabel):
+                assert s.name == bs.name, 'Expected goto label name {}, got {} at {}'.format(
+                    s.name, bs.name, spath)
 
         assert len(block.stmts) == len(self.stmts), 'Unexpected statements in {}: {}'.format(path, block.stmts)
