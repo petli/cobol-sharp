@@ -9,7 +9,7 @@
        01 b pic 9.
 
        procedure division.
-           move 'x' to a
+           move 'x' to a.
        main-do.
            perform sub.
            go to main-exit.
@@ -38,4 +38,4 @@
        unused section.
            move 3 to b.
        unused-exit.
-           exit
+           exit.

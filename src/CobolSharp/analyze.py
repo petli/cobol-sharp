@@ -11,10 +11,7 @@ suppressed_cobol_statements = (GoToStatement, TerminatingStatement, NextSentence
 def branch_join_graph_to_block(graph, keep_all_cobol_stmts=False):
     # TODO: resolve loops to translate into DAG
 
-    edges = graph.out_edges(Entry, data=True)
-    assert len(edges) == 1
-
-    redux = BlockReduction(graph, edges[0], keep_all_cobol_stmts=keep_all_cobol_stmts)
+    redux = BlockReduction(graph, start_node=Entry, keep_all_cobol_stmts=keep_all_cobol_stmts)
     redux.resolve_tail_nodes()
 
     return redux.block
@@ -22,67 +19,88 @@ def branch_join_graph_to_block(graph, keep_all_cobol_stmts=False):
 
 
 class BlockReduction(object):
-    def __init__(self, graph, start_edge, keep_all_cobol_stmts, reduced_joins = None, traverse_first_edge=False, ):
-        self._graph = graph
-        self._reduced_joins = reduced_joins if reduced_joins is not None else {}
-        self._keep_all_cobol_stmts = keep_all_cobol_stmts
+    def __init__(self, graph, start_edge=None, start_node=None, parent=None, keep_all_cobol_stmts=False):
+        """Reduce a structured section of the graph into a single block.
+        This is a recursive operation that reduces blocks in contained if-statements into their
+        own blocks, which are then folded into this block until nothing more can be reduced.
+
+        If start_edge is not None, it must have a single out edge
+        which is the start of the block.  Otherwise start_edge is the
+        starting edge which is used for the traversal.
+
+        If parent is not None, this block will use that for detecting
+        reductions and storing tail nodes.  Must not be set outside a
+        recursive reduction.
+        """
+
         self.block = Block()
 
-        # Map from non-reducible nodes to the sub-blocks pointing to them
-        self.tail_nodes = {}
+        self._graph = graph
 
-        src, dest, data = start_edge
-        self._add_statements(data['stmts'])
+        if parent is None:
+            # Map from join node to a count of the number of reduced in edges to that join in this block
+            self._reduced_joins = {}
 
-        skip_join_check = traverse_first_edge
+            # Map from non-reducible nodes to the sub-blocks pointing to them
+            self._tail_nodes = {}
+
+            self._keep_all_cobol_stmts = keep_all_cobol_stmts
+        else:
+            self._reduced_joins = parent._reduced_joins
+            self._tail_nodes = parent._tail_nodes
+            self._keep_all_cobol_stmts = parent._keep_all_cobol_stmts
+
+        if start_edge is not None:
+            src, node, data = start_edge
+            self._add_statements(data['stmts'])
+            skip_join_check = False
+        else:
+            assert start_node is not None
+            node = start_node
+            skip_join_check = True
 
         # Reduce a sequence of branches if possible by
         # looping as long as all join paths are accounted for
-        while dest is not None and dest is not Exit:
+        while node is not None and node is not Exit:
             if skip_join_check:
                 skip_join_check = False
-            elif not self._is_reduced_join(dest):
+            elif not self._is_reduced_join(node):
                 # There are incoming edges that have not been reduced
                 # in this scope, so we can't reduce further
                 break
 
-            if isinstance(dest, Branch):
-                dest = self._reduce_if(dest)
-
+            if isinstance(node, Branch):
+                node = self._reduce_if(node)
             else:
-                assert isinstance(dest, Join)
-                dest = self._traverse_edge(dest)
+                assert node == Entry or isinstance(node, Join)
+                node = self._traverse_edge(node)
 
         # Reached a non-reducible node
-        self.dest_node = dest
+        self.dest_node = node
 
-        if dest is Exit:
+        if node is Exit:
             self.block.stmts.append(Return())
 
 
     def resolve_tail_nodes(self):
-        # Stack of tail nodes left to process
-        nodes = list(self.tail_nodes.keys())
+        # Process all tail nodes until all have been reduced.  Since
+        # tail nodes might be added during this process, iterate
+        # over self._tail_nodes until all nodes are in node_reduxes.
+
         node_reduxes = {}
-        while nodes:
-            node = nodes.pop()
+        while len(node_reduxes) < len(self._tail_nodes):
+            for node in self._tail_nodes.keys():
+                if node not in node_reduxes:
+                    redux = BlockReduction(self._graph, start_node=node, parent=self)
+                    node_reduxes[node] = redux
 
-            # Fake an input edge to this node so it can be reduced
-            edge = (None, node, {'stmts': []})
-            redux = BlockReduction(self._graph, edge,
-                                   keep_all_cobol_stmts=self._keep_all_cobol_stmts,
-                                   traverse_first_edge=True)
-            node_reduxes[node] = redux
+                    if redux.dest_node is not Exit:
+                        self._add_tail_node(redux.dest_node, redux.block)
 
-            if redux.dest_node is not Exit:
-                self._add_tail_node(redux.dest_node, redux.block)
-                nodes.append(redux.dest_node)
-
-            self._add_redux_tail_nodes(redux)
-            nodes.extend(redux.tail_nodes.keys())
+                    break
 
         # All nodes processed, add them to this block in source code order
-        node_blocks = list(self.tail_nodes.items())
+        node_blocks = list(self._tail_nodes.items())
         node_blocks.sort(key = lambda n: n[0].source.from_char)
 
         node_labels = {}
@@ -105,6 +123,7 @@ class BlockReduction(object):
             self.block.stmts.append(node_labels[node])
             self.block.stmts.extend(redux.block.stmts)
 
+
     def _add_statements(self, stmts):
         if not self._keep_all_cobol_stmts:
             stmts = [s for s in stmts if not isinstance(s, suppressed_cobol_statements)]
@@ -122,13 +141,11 @@ class BlockReduction(object):
         assert len(edges) == 2
 
         then_redux = BlockReduction(self._graph,
-                                    self._get_condition_edge(edges, True),
-                                    keep_all_cobol_stmts=self._keep_all_cobol_stmts,
-                                    reduced_joins=self._reduced_joins)
+                                    start_edge=self._get_condition_edge(edges, True),
+                                    parent=self)
         else_redux = BlockReduction(self._graph,
-                                    self._get_condition_edge(edges, False),
-                                    keep_all_cobol_stmts=self._keep_all_cobol_stmts,
-                                    reduced_joins=self._reduced_joins)
+                                    start_edge=self._get_condition_edge(edges, False),
+                                    parent=self)
         invert_condition = False
         tail_stmts = []
 
@@ -164,8 +181,6 @@ class BlockReduction(object):
 
         self.block.stmts.append(If(branch.stmt, then_redux.block, else_redux.block, invert_condition))
         self.block.stmts.extend(tail_stmts)
-        self._add_redux_tail_nodes(then_redux)
-        self._add_redux_tail_nodes(else_redux)
 
         return dest
 
@@ -187,19 +202,16 @@ class BlockReduction(object):
         self._add_statements(data['stmts'])
         return next
 
+
     def _add_tail_node(self, node, block):
         blocks = self._get_tail_node_blocks(node)
         blocks.append(block)
 
-    def _add_redux_tail_nodes(self, redux):
-        for node, redux_blocks in redux.tail_nodes.items():
-            blocks = self._get_tail_node_blocks(node)
-            blocks.extend(redux_blocks)
 
     def _get_tail_node_blocks(self, node):
         try:
-            return self.tail_nodes[node]
+            return self._tail_nodes[node]
         except KeyError:
-            blocks = self.tail_nodes[node] = []
+            blocks = self._tail_nodes[node] = []
             return blocks
 
