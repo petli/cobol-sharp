@@ -102,6 +102,9 @@ class BranchJoinGraph(object):
                 branch_nodes.append(n)
                 node_stmts[stmt] = n
 
+            elif isinstance(stmt, TerminatingStatement):
+                node_stmts[stmt] = Exit
+
             elif stmt is Exit:
                 node_stmts[Exit] = Exit
 

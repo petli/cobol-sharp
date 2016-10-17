@@ -1,6 +1,8 @@
 # Copyright 2016 Peter Liljenberg <peter.liljenberg@gmail.com>
 
 import pytest
+import sys
+import networkx as nx
 
 from CobolSharp import *
 from CobolSharp.structure import *
@@ -18,19 +20,54 @@ program_code_prefix = """
 
 
 @pytest.fixture(scope='function')
-def cobol_block(request):
+def cobol_stmt_graph(request):
+    """Return a StmtGraph of reachable statements of the Cobol code in the
+    doc string of the unit test function.
+    """
+    program = parse(program_code_prefix + request.function.__doc__)
+    section = program.proc_div.sections['test']
+    full_graph = StmtGraph.from_section(section)
+    return full_graph.reachable_subgraph()
+
+
+@pytest.fixture(scope='function')
+def cobol_branch_graph(cobol_stmt_graph):
+    """Return a BranchJoinGraph of the Cobol code in the
+    doc string of the unit test function.
+    """
+    return BranchJoinGraph.from_stmt_graph(cobol_stmt_graph)
+
+
+@pytest.fixture(scope='function')
+def cobol_block(cobol_branch_graph):
     """Analyze the Cobol code in the doc string of the test function
     and return it as a Block object.
     """
+    return cobol_branch_graph.flatten_block()
 
-    program = parse(program_code_prefix + request.function.__doc__)
 
-    section = program.proc_div.sections['test']
-    full_graph = StmtGraph.from_section(section)
-    reachable = full_graph.reachable_subgraph()
-    branch_join = BranchJoinGraph.from_stmt_graph(reachable)
+@pytest.fixture(scope='function')
+def cobol_debug(cobol_stmt_graph, cobol_branch_graph, cobol_block, request):
+    """Add this as dependency to a unit test to debug it by printing the
+    different code graphs and blocks and writing DOT files for the
+    graphs.
+    """
 
-    return branch_join.flatten_block()
+    print()
+    cobol_stmt_graph.print_stmts()
+    print()
+    print('############################################')
+    print()
+    cobol_branch_graph.print_nodes()
+    print()
+    print('############################################')
+    print()
+    formatter = PythonishFormatter(TextOutputter(sys.stdout))
+    formatter.format_block(cobol_block)
+    print()
+
+    nx.nx_agraph.write_dot(cobol_stmt_graph.graph, '{}_stmt_graph.dot'.format(request.function.__name__))
+    nx.nx_agraph.write_dot(cobol_branch_graph.graph, '{}_branch_graph.dot'.format(request.function.__name__))
 
 
 class ExpectedBlock:

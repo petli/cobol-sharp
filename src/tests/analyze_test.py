@@ -18,7 +18,6 @@ def test_empty_section(cobol_block):
        exit.
 """
     ExpectedBlock(
-        Return()
     ).assert_block(cobol_block)
 
 
@@ -31,7 +30,6 @@ def test_only_sequential_stmts(cobol_block):
     ExpectedBlock(
         PerformSectionStatement(None, None, 'first'),
         PerformSectionStatement(None, None, 'second'),
-        Return()
     ).assert_block(cobol_block)
 
 
@@ -47,7 +45,6 @@ def test_superfluous_goto(cobol_block):
     ExpectedBlock(
         PerformSectionStatement(None, None, 'first'),
         PerformSectionStatement(None, None, 'second'),
-        Return()
     ).assert_block(cobol_block)
 
 
@@ -61,7 +58,6 @@ def test_goto_skipping_stmts(cobol_block):
 """
     ExpectedBlock(
         PerformSectionStatement(None, None, 'second'),
-        Return()
     ).assert_block(cobol_block)
 
 
@@ -75,7 +71,6 @@ def test_next_sentence_skipping_stmts(cobol_block):
 """
     ExpectedBlock(
         PerformSectionStatement(None, None, 'second'),
-        Return()
     ).assert_block(cobol_block)
 
 
@@ -90,7 +85,6 @@ def test_single_if(cobol_block):
            ExpectedBlock(PerformSectionStatement(None, None, 'true-branch')),
            ExpectedBlock(),
            False),
-        Return()
     ).assert_block(cobol_block)
 
 
@@ -107,7 +101,6 @@ def test_single_if_else(cobol_block):
            ExpectedBlock(PerformSectionStatement(None, None, 'true-branch')),
            ExpectedBlock(PerformSectionStatement(None, None, 'false-branch')),
            False),
-        Return()
     ).assert_block(cobol_block)
 
 
@@ -135,7 +128,6 @@ def test_reduce_goto_structured_if(cobol_block):
                             False)),
            ExpectedBlock(PerformSectionStatement(None, None, 'x')),
            False),
-        Return()
     ).assert_block(cobol_block)
 
 
@@ -167,7 +159,6 @@ def test_reduced_crossed_if_branches(cobol_block):
 """
     inner_true_label = GotoLabel('inner-true', None)
     inner_false_label = GotoLabel('inner-false', None)
-    finish_label = GotoLabel('finish', None)
 
     ExpectedBlock(
         If(None,
@@ -185,12 +176,91 @@ def test_reduced_crossed_if_branches(cobol_block):
 
         inner_true_label,
         PerformSectionStatement(None, None, 'inner-true'),
-        Goto(finish_label),
+        Return(),
 
         inner_false_label,
         PerformSectionStatement(None, None, 'inner-false'),
-        Goto(finish_label),
-
-        finish_label,
-        Return()
+        Return(),
     ).assert_block(cobol_block)
+
+
+def test_remove_else_when_then_returns(cobol_block):
+    """
+           if b > 0
+               if b > 1
+                   perform b-plus
+                   go to finish
+               else
+                   go to inner-false
+           else
+               if b < -1
+                   perform b-minus
+                   go to finish
+               else
+                   go to inner-false.
+
+       inner-false.
+           perform inner-false
+           go to finish.
+
+       finish.
+           exit program.
+"""
+    ExpectedBlock(
+        If(None,
+           ExpectedBlock(If(None,
+                            ExpectedBlock(PerformSectionStatement(None, None, 'b-plus'),
+                                          Return()),
+                            ExpectedBlock(),
+                            False)),
+
+           ExpectedBlock(If(None,
+                            ExpectedBlock(PerformSectionStatement(None, None, 'b-minus'),
+                                          Return()),
+                            ExpectedBlock(),
+                            False)),
+           False),
+
+        PerformSectionStatement(None, None, 'inner-false'),
+    ).assert_block(cobol_block)
+
+
+def test_remove_then_when_else_returns(cobol_block, cobol_debug):
+    """
+           if b > 0
+               if b > 1
+                   perform b-plus
+                   go to inner-true
+               else
+                   go to finish
+           else
+               if b < -1
+                   perform b-minus
+                   go to inner-true
+               else
+                   go to finish.
+
+       inner-true.
+           perform inner-true.
+           go to finish.
+
+       finish.
+           exit program.
+"""
+    ExpectedBlock(
+        If(None,
+           ExpectedBlock(If(None,
+                            ExpectedBlock(Return()),
+                            ExpectedBlock(),
+                            True),
+                         PerformSectionStatement(None, None, 'b-plus'),),
+
+           ExpectedBlock(If(None,
+                            ExpectedBlock(Return()),
+                            ExpectedBlock(),
+                            True),
+                         PerformSectionStatement(None, None, 'b-minus'),),
+           False),
+        PerformSectionStatement(None, None, 'inner-true'),
+    ).assert_block(cobol_block)
+

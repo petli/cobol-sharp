@@ -68,9 +68,6 @@ class BlockReduction(object):
         # Reached a non-reducible node
         self.dest_node = node
 
-        if node is Exit:
-            self.block.stmts.append(Return())
-
 
     def resolve_tail_nodes(self):
         # Process all tail nodes until all have been reduced.  Since
@@ -84,7 +81,9 @@ class BlockReduction(object):
                     redux = BlockReduction(self._graph, start_node=node, parent=self)
                     node_reduxes[node] = redux
 
-                    if redux.dest_node is not Exit:
+                    if redux.dest_node is Exit:
+                        redux.block.stmts.append(Return())
+                    else:
                         self._add_tail_node(redux.dest_node, redux.block)
 
                     break
@@ -162,6 +161,7 @@ class BlockReduction(object):
                 dest = else_redux.dest_node
                 tail_stmts = else_redux.block.stmts
                 else_redux.block = Block()
+                then_redux.block.stmts.append(Return())
 
             # Paths diverge and doesn't exit, cannot do anything about this
             else:
