@@ -3,7 +3,7 @@
 # syntax and structure must be imported explicitly by user
 
 from .koopa import parse
-from .graph import StmtGraph, BranchJoinGraph
+from .graph import StmtGraph, BranchJoinGraph, AcyclicBranchGraph
 from .output import Outputter, TextOutputter
 from .format import PythonishFormatter
 

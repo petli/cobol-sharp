@@ -39,15 +39,23 @@ def cobol_branch_graph(cobol_stmt_graph):
 
 
 @pytest.fixture(scope='function')
-def cobol_block(cobol_branch_graph):
-    """Analyze the Cobol code in the doc string of the test function
-    and return it as a Block object.
+def cobol_dag(cobol_branch_graph):
+    """Return an AcyclicBranchGraph of the Cobol code in the
+    doc string of the unit test function.
     """
-    return cobol_branch_graph.flatten_block()
+    return AcyclicBranchGraph.from_branch_graph(cobol_branch_graph)
 
 
 @pytest.fixture(scope='function')
-def cobol_debug(cobol_stmt_graph, cobol_branch_graph, cobol_block, request):
+def cobol_block(cobol_dag):
+    """Analyze the Cobol code in the doc string of the test function
+    and return it as a Block object.
+    """
+    return cobol_dag.flatten_block()
+
+
+@pytest.fixture(scope='function')
+def cobol_debug(cobol_stmt_graph, cobol_dag, cobol_block, request):
     """Add this as dependency to a unit test to debug it by printing the
     different code graphs and blocks and writing DOT files for the
     graphs.
@@ -58,7 +66,7 @@ def cobol_debug(cobol_stmt_graph, cobol_branch_graph, cobol_block, request):
     print()
     print('############################################')
     print()
-    cobol_branch_graph.print_nodes()
+    cobol_dag.print_nodes()
     print()
     print('############################################')
     print()
@@ -67,7 +75,7 @@ def cobol_debug(cobol_stmt_graph, cobol_branch_graph, cobol_block, request):
     print()
 
     nx.nx_agraph.write_dot(cobol_stmt_graph.graph, '{}_stmt_graph.dot'.format(request.function.__name__))
-    nx.nx_agraph.write_dot(cobol_branch_graph.graph, '{}_branch_graph.dot'.format(request.function.__name__))
+    nx.nx_agraph.write_dot(cobol_dag.graph, '{}_branch_graph.dot'.format(request.function.__name__))
 
 
 class ExpectedBlock:

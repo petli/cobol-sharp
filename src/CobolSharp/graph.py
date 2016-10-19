@@ -133,23 +133,35 @@ class BranchJoinGraph(object):
         return branch_join_graph
 
 
-    def _add_branch_edge(self, stmt_graph, node_stmts, source_node, stmt, **attrs):
+    def _add_branch_edge(self, stmt_graph, node_stmts, source_node, start_stmt, **attrs):
+        stmt = start_stmt
         stmts = []
+        dest_node = None
+
         while stmt not in node_stmts:
             stmts.append(stmt)
             nbrs = stmt_graph.graph.successors(stmt)
             assert len(nbrs) == 1
             stmt = nbrs[0]
 
+            if stmt is start_stmt:
+                # This is a self-loop
+                dest_node = source_node
+                break
+
+        if dest_node is None:
+            dest_node = node_stmts[stmt]
+
         attrs['stmts'] = stmts
-        self.graph.add_edge(source_node, node_stmts[stmt], attr_dict=attrs)
+        self.graph.add_edge(source_node, dest_node, attr_dict=attrs)
 
 
     def print_nodes(self):
         nodes = self.graph.nodes()
         nodes.sort(key = lambda n: n.source.from_char)
         for node in nodes:
-            print(node)
+            loops = self.graph.node[node].get('loops', ())
+            print('{} [{}]'.format(node, ', '.join([str(loop) for loop in loops])))
             for n, next_node, data in self.graph.out_edges_iter(node, data=True):
                 if data.get('condition') == True:
                     print('True:')
@@ -162,12 +174,111 @@ class BranchJoinGraph(object):
                 print('-> {}'.format(next_node))
 
 
+class AcyclicBranchGraph(BranchJoinGraph):
+    """Similar to a BranchJoinGraph, but loops are broken up by adding
+    Loop and ContinueLoop nodes to produce a DAG.
+
+    A Loop node identifies the start of a loop.  It replaces a Join
+    node, and is put in front of other nodes.
+
+    All edges that pointed to the original join node is replaced by an
+    edge to a ContinueLoop node that references the Loop node object.
+
+    Each node in a loop will have an attribute 'loops', which is a
+    list of all the Loop objects it belongs to.
+    """
+
     def flatten_block(self, keep_all_cobol_stmts=False):
         """Translate the graph structure to a Block of CobolStatement or
         structure elements and return it.
         """
-        # TODO: should be done on a DAG instead
-
         redux = BlockReduction(self.graph, start_node=Entry, keep_all_cobol_stmts=keep_all_cobol_stmts)
         redux.resolve_tail_nodes()
         return redux.block
+
+
+    @classmethod
+    def from_branch_graph(cls, branch_graph):
+        """Identify loops in a BranchJoinGraph and break them by adding Loop
+        and ContinueLoop nodes.  Returns the resulting AcyclicBranchGraph.
+        """
+        dag = cls()
+
+        # Copy by way of edges, to avoid getting copies of the node objects
+        dag.graph.add_edges_from(branch_graph.graph.edges(keys=True, data=True))
+
+        # Loops are strongly connected components, i.e. a set of nodes
+        # which can all reach the other ones via some path through the
+        # component.
+
+        # Since loops can contain loops, this is done repeatedly until all
+        # loops have been broken.  At this stage single-node loops are ignored,
+        # since nx.strongly_connected_components() returns components also
+        # consisting of a single nodes without any self-looping edge.
+        while True:
+            components = [c for c in nx.strongly_connected_components(dag.graph)
+                          if len(c) > 1]
+            print(components)
+            if not components:
+                break
+
+            for component in components:
+                dag._break_component_loop(component)
+
+        # Finally find any remaining single-node loops
+        for node in list(dag.graph):
+            if dag.graph[node].get(node) is not None:
+                dag._break_component_loop({node})
+
+        return dag
+
+
+    def _break_component_loop(self, component):
+
+        start_node = self._find_loop_start(component)
+
+        loop = Loop(start_node.stmt)
+        continue_loop = ContinueLoop(loop)
+
+        for node in component:
+            self._tag_node_in_loop(node, loop)
+
+        # Break in-loop edges to the start node, and redirect out-of-loop edges to the loop node
+        for edge in self.graph.in_edges(start_node, data=True, keys=True):
+            src, dest, key, data = edge
+            self.graph.remove_edge(src, dest, key)
+
+            if src in component:
+                self.graph.add_edge(src, continue_loop, key, data)
+            else:
+                self.graph.add_edge(src, loop, key, data)
+
+        if isinstance(start_node, Join):
+            # Replace Join node
+            for edge in self.graph.out_edges(start_node, data=True, keys=True):
+                src, dest, key, data = edge
+                self.graph.remove_edge(src, dest, key)
+                self.graph.add_edge(loop, dest, key, data)
+
+            self.graph.remove_node(start_node)
+        else:
+            # Wire to first node in loop
+            assert isinstance(start_node, (Loop, Branch))
+            self.graph.add_edge(loop, start_node, stmts=[])
+
+
+    def _find_loop_start(self, component):
+        # The node with the most in edges from the rest of the graph
+        # is considered the loop start
+        return max(component, key = lambda node: sum((
+            1 for pred in self.graph.predecessors_iter(node)
+            if pred not in component)))
+
+
+    def _tag_node_in_loop(self, node, loop):
+        node_loops = self.graph.node[node].get('loops')
+        if not node_loops:
+            node_loops = self.graph.node[node]['loops'] = []
+        node_loops.append(loop)
+
+

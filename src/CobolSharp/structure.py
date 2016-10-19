@@ -6,6 +6,8 @@ class _DummySource(object):
         self.from_char = from_char
 
 class _Entry(object):
+    """Singleton used as the entry node in all graphs."""
+
     def __str__(self):
         return 'Entry'
 
@@ -13,7 +15,10 @@ class _Entry(object):
 
 Entry = _Entry()
 
+
 class _Exit(object):
+    """Singleton used as the exit node in all graphs."""
+
     def __str__(self):
         return 'Exit'
 
@@ -23,6 +28,8 @@ Exit = _Exit()
 
 
 class Branch(object):
+    """A node that branches to then/else edges in BranchJoinGraph."""
+
     def __init__(self, stmt):
         self.stmt = stmt
         self.source = stmt.source
@@ -30,13 +37,39 @@ class Branch(object):
     def __str__(self):
         return 'Branch {}'.format(self.stmt)
 
+
 class Join(object):
+    """A node where a number of edges join in BranchJoinGraph, but doesn't branch out again."""
+
     def __init__(self, stmt):
         self.stmt = stmt
         self.source = stmt.source
 
     def __str__(self):
         return 'Join {}'.format(self.source.from_line)
+
+
+class Loop(object):
+    """Start of a loop in an AcyclicBranchGraph."""
+
+    def __init__(self, stmt):
+        self.stmt = stmt
+        self.source = stmt.source
+
+    def __str__(self):
+        return 'Loop {}'.format(self.source.from_line)
+
+
+class ContinueLoop(object):
+    """Continue to the start of a loop in an AcyclicBranchGraph."""
+
+    def __init__(self, loop):
+        self.loop = loop
+        self.source = loop.source
+
+    def __str__(self):
+        return 'Continue -> {}'.format(self.loop)
+
 
 class Method(object):
     def __init__(self, cobol_section, block):
@@ -65,17 +98,4 @@ class Goto(object):
 
 class Return(object):
     pass
-
-class Loop(object):
-    def __init__(self, cobol_stmt, cobol_para):
-        self.cobol_stmt = cobol_stmt
-        self.cobol_para = cobol_para
-
-class ContinueLoop(object):
-    def __init__(self, loop):
-        self.loop = loop
-
-class BreakLoop(object):
-    def __init__(self, loop):
-        self.loop = loop
 

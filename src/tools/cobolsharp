@@ -27,11 +27,14 @@ def main():
 #        nx.nx_agraph.write_dot(reachable, '{}_reachable_graph.dot'.format(section.name))
 
         branch_join = BranchJoinGraph.from_stmt_graph(reachable)
-#        branch_join.print_nodes()
-#        nx.nx_agraph.write_dot(branch_join, '{}_branch_join.dot'.format(section.name))
+        branch_join.print_nodes()
+        nx.nx_agraph.write_dot(branch_join.graph, '{}_branch_join.dot'.format(section.name))
 
-        block = branch_join.flatten_block()
+        dag = AcyclicBranchGraph.from_branch_graph(branch_join)
+        dag.print_nodes()
+        nx.nx_agraph.write_dot(dag.graph, '{}_dag.dot'.format(section.name))
 
+        block = dag.flatten_block()
         formatter.format_method(Method(section, block))
 
 

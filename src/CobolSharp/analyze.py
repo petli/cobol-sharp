@@ -61,6 +61,10 @@ class BlockReduction(object):
 
             if isinstance(node, Branch):
                 node = self._reduce_if(node)
+
+            elif isinstance(node, Loop):
+                raise NotImplementedError()
+
             else:
                 assert node == Entry or isinstance(node, Join)
                 node = self._traverse_edge(node)
