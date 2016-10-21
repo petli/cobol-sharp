@@ -3,7 +3,7 @@
 import networkx as nx
 from .syntax import *
 from .structure import *
-from .analyze import BlockReduction
+from .analyze import BlockReduction, ReductionScope
 
 class StmtGraph(object):
     """Holds a directional graph of statements as nodes including the
@@ -185,14 +185,15 @@ class AcyclicBranchGraph(BranchJoinGraph):
     edge to a ContinueLoop node that references the Loop node object.
 
     Each node in a loop will have an attribute 'loops', which is a
-    list of all the Loop objects it belongs to.
+    set of all the Loop objects it belongs to.
     """
 
     def flatten_block(self, keep_all_cobol_stmts=False):
         """Translate the graph structure to a Block of CobolStatement or
         structure elements and return it.
         """
-        redux = BlockReduction(self.graph, start_node=Entry, keep_all_cobol_stmts=keep_all_cobol_stmts)
+        scope = ReductionScope(self.graph, keep_all_cobol_stmts)
+        redux = BlockReduction(self.graph, scope, start_node=Entry)
         redux.resolve_tail_nodes()
         return redux.block
 
@@ -218,7 +219,6 @@ class AcyclicBranchGraph(BranchJoinGraph):
         while True:
             components = [c for c in nx.strongly_connected_components(dag.graph)
                           if len(c) > 1]
-            print(components)
             if not components:
                 break
 
@@ -239,6 +239,7 @@ class AcyclicBranchGraph(BranchJoinGraph):
 
         loop = Loop(start_node.stmt)
         continue_loop = ContinueLoop(loop)
+        self.graph.add_node(continue_loop, loop=loop, loops=[loop])
 
         for node in component:
             self._tag_node_in_loop(node, loop)
@@ -276,9 +277,11 @@ class AcyclicBranchGraph(BranchJoinGraph):
 
 
     def _tag_node_in_loop(self, node, loop):
+        self.graph.node[node]['loop'] = loop
+
         node_loops = self.graph.node[node].get('loops')
-        if not node_loops:
-            node_loops = self.graph.node[node]['loops'] = []
-        node_loops.append(loop)
+        if node_loops is None:
+            node_loops = self.graph.node[node]['loops'] = set()
+        node_loops.add(loop)
 
 

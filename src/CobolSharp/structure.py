@@ -99,3 +99,20 @@ class Goto(object):
 class Return(object):
     pass
 
+
+class Forever(object):
+    """Code structure: An inifinite loop."""
+
+    def __init__(self, cobol_para, block):
+        self.cobol_para = cobol_para
+        self.block = block
+
+class Break(object):
+    """Code structure: break the current loop."""
+    pass
+
+
+class Continue(object):
+    """Code structure: continue the current loop."""
+    pass
+

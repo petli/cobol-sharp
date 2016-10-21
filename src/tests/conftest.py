@@ -55,12 +55,12 @@ def cobol_block(cobol_dag):
 
 
 @pytest.fixture(scope='function')
-def cobol_debug(cobol_stmt_graph, cobol_dag, cobol_block, request):
+def cobol_debug_graph(cobol_stmt_graph, cobol_dag, request):
     """Add this as dependency to a unit test to debug it by printing the
-    different code graphs and blocks and writing DOT files for the
-    graphs.
+    different code graphs and writing DOT files for the graphs.
     """
 
+    print('############################################')
     print()
     cobol_stmt_graph.print_stmts()
     print()
@@ -69,13 +69,32 @@ def cobol_debug(cobol_stmt_graph, cobol_dag, cobol_block, request):
     cobol_dag.print_nodes()
     print()
     print('############################################')
-    print()
-    formatter = PythonishFormatter(TextOutputter(sys.stdout))
-    formatter.format_block(cobol_block)
-    print()
 
     nx.nx_agraph.write_dot(cobol_stmt_graph.graph, '{}_stmt_graph.dot'.format(request.function.__name__))
-    nx.nx_agraph.write_dot(cobol_dag.graph, '{}_branch_graph.dot'.format(request.function.__name__))
+    nx.nx_agraph.write_dot(cobol_dag.graph, '{}_dag.dot'.format(request.function.__name__))
+
+
+@pytest.fixture(scope='function')
+def cobol_debug_block(cobol_block):
+    """Add this as dependency to a unit test to debug it by printing the
+    formatted pythonish code.
+    """
+
+    formatter = PythonishFormatter(TextOutputter(sys.stdout))
+
+    print('############################################')
+    print()
+    formatter.format_block(cobol_block)
+    print()
+    print('############################################')
+
+
+@pytest.fixture(scope='function')
+def cobol_debug(cobol_debug_graph, cobol_debug_block):
+    """Add this as dependency to a unit test to debug it by printing the
+    both the code graphs and the formatted pythonish code.
+    """
+    pass
 
 
 class ExpectedBlock:
@@ -116,5 +135,8 @@ class ExpectedBlock:
             elif isinstance(s, GotoLabel):
                 assert s.name == bs.name, 'Expected goto label name {}, got {} at {}'.format(
                     s.name, bs.name, spath)
+
+            elif isinstance(s, Forever):
+                s.block.assert_block(bs.block, spath)
 
         assert len(block.stmts) == len(self.stmts), 'Unexpected statements in {}: {}'.format(path, block.stmts)

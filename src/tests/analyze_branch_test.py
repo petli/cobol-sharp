@@ -8,11 +8,6 @@ from CobolSharp.structure import *
 from .conftest import ExpectedBlock
 
 
-def assert_perform(stmt, expected_section):
-    assert isinstance(stmt, PerformSectionStatement)
-    assert stmt.section_name == expected_section
-
-
 def test_empty_section(cobol_block):
     """
        exit.
@@ -131,7 +126,7 @@ def test_reduce_goto_structured_if(cobol_block):
     ).assert_block(cobol_block)
 
 
-def test_reduced_crossed_if_branches(cobol_block):
+def test_reduced_crossed_if_branches(cobol_block, cobol_debug):
     """
            if b > 0
                if b > 1
@@ -225,7 +220,7 @@ def test_remove_else_when_then_returns(cobol_block):
     ).assert_block(cobol_block)
 
 
-def test_remove_then_when_else_returns(cobol_block, cobol_debug):
+def test_remove_then_when_else_returns(cobol_block):
     """
            if b > 0
                if b > 1

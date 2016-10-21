@@ -24,6 +24,7 @@ class PythonishFormatter(object):
 
         for stmt in block.stmts:
             if isinstance(stmt, If):
+                self._output.line()
                 self._output.line('if {}{}:'.format(
                     'not ' if stmt.invert_condition else '',
                     stmt.cobol_stmt.condition),
@@ -56,6 +57,19 @@ class PythonishFormatter(object):
             elif isinstance(stmt, Return):
                 self._output.line('return')
                 self._output.line()
+
+            elif isinstance(stmt, Forever):
+                self._output.line()
+                self._output.line('while True:')
+                with self._output.indent():
+                    self.format_block(stmt.block)
+                self._output.line()
+
+            elif isinstance(stmt, Break):
+                self._output.line('break')
+
+            elif isinstance(stmt, Continue):
+                self._output.line('continue')
 
             elif isinstance(stmt, CobolStatement):
                 self._output.line(stmt.source, link=stmt.source.from_line)
