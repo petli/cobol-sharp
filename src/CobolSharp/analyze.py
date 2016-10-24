@@ -98,6 +98,17 @@ class LoopReductionScope(ReductionScope):
         return node is not None and self._loop is self._graph.node[node].get('loop')
 
 
+    def pop_continue_node(self):
+        nodes = [n for n in self._tail_reduxes
+                 if isinstance(n, ContinueLoop) and n.loop == self._loop]
+
+        if not nodes:
+            return None
+
+        assert len(nodes) == 1
+        return self._tail_reduxes.pop(nodes[0])
+
+
 class ReductionBase(object):
     def __init__(self, graph, scope):
         self._graph = graph
@@ -333,9 +344,11 @@ class LoopReduction(ReductionBase):
     def __init__(self, graph, parent_scope, loop_node):
         super(LoopReduction, self).__init__(graph, parent_scope)
 
-        loop_scope = LoopReductionScope(parent_scope, loop_node)
+        self._node = loop_node
+        self._scope = LoopReductionScope(parent_scope, loop_node)
 
-        redux = BlockReduction(self._graph, loop_scope, start_edge=self._out_edge(loop_node))
+        redux = BlockReduction(self._graph, self._scope, start_edge=self._out_edge(loop_node))
+        self._resolve_continue_reduxes()
         redux.resolve_tail_nodes()
 
         # TODO: identify while/do-while loops
@@ -347,17 +360,17 @@ class LoopReduction(ReductionBase):
         # Loop block terminating somewhere else, let the scope handle it
         else:
             self.dest_node = redux.dest_node
-            loop_scope.add_tail_redux(self)
+            self._scope.add_tail_redux(self)
 
         # No blocks breaking into the outer scope, so this cannot be reduced further.
-        if not loop_scope._break_reduxes:
+        if not self._scope._break_reduxes:
             return
 
         # Let the node that most blocks break to be the next node
         # after the loop, and push the others to be tail nodes in the
         # parent scope.
 
-        breaks = sorted(loop_scope._break_reduxes.items(), key=lambda n: -len(n[1]))
+        breaks = sorted(self._scope._break_reduxes.items(), key=lambda n: -len(n[1]))
 
         self.dest_node, reduxes = breaks[0]
         for r in reduxes:
@@ -368,3 +381,21 @@ class LoopReduction(ReductionBase):
         for node, reduxes in breaks[1:]:
             for r in reduxes:
                 parent_scope.add_tail_redux(r, possible_loop_break=False)
+
+    def _resolve_continue_reduxes(self):
+        """Handle inner loops that gotos the start of this loop by adding a
+        label to the loop as a whole and goto statements to the inner reduxes.
+        """
+        reduxes = self._scope.pop_continue_node()
+        if not reduxes:
+            return
+
+        para = self._node.stmt.sentence.para
+        assert self._node.stmt == para.get_first_stmt()
+        label = GotoLabel(para.name or '__start', para)
+        self.block.stmts.append(label)
+
+        for redux in reduxes:
+            redux.block.stmts.append(Goto(label))
+            redux.dest_node = None
+
