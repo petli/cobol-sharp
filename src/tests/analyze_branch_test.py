@@ -126,6 +126,30 @@ def test_reduce_goto_structured_if(cobol_block):
     ).assert_block(cobol_block)
 
 
+def test_structured_if(cobol_block):
+    """
+           if a not = 'x'
+               if a = 'y'
+                   perform y
+               else
+                   perform z
+               end-if
+           else
+               perform x
+           end-if.
+           exit.
+"""
+    ExpectedBlock(
+        If(None,
+           ExpectedBlock(If(None,
+                            ExpectedBlock(PerformSectionStatement(None, None, 'y')),
+                            ExpectedBlock(PerformSectionStatement(None, None, 'z')),
+                            False)),
+           ExpectedBlock(PerformSectionStatement(None, None, 'x')),
+           False),
+    ).assert_block(cobol_block)
+
+
 def test_reduced_crossed_if_branches(cobol_block, cobol_debug):
     """
            if b > 0
