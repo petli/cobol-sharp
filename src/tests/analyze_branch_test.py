@@ -99,6 +99,22 @@ def test_single_if_else(cobol_block):
     ).assert_block(cobol_block)
 
 
+def test_remove_empty_if_branch(cobol_block):
+    """
+         if a > 0
+             next sentence
+         else
+             perform false-branch.
+         exit.
+"""
+    ExpectedBlock(
+        If(None,
+           ExpectedBlock(PerformSectionStatement(None, None, 'false-branch')),
+           ExpectedBlock(),
+           True),
+    ).assert_block(cobol_block)
+
+
 def test_reduce_goto_structured_if(cobol_block):
     """
            if a not = 'x'

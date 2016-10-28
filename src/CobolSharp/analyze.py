@@ -281,6 +281,11 @@ class IfReduction(ReductionBase):
         # node, so the block continues there
         if self._then.dest_node == self._else.dest_node:
             self._scope.reduce_join(self._then.dest_node)
+
+            # Flip empty then branches
+            if not self._then.block.stmts:
+                self._flip_branches()
+
             self.dest_node = self._then.dest_node
             return
 

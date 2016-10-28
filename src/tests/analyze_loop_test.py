@@ -147,3 +147,30 @@ def test_break_from_inner_loop(cobol_block):
         PerformSectionStatement(None, None, 'c'),
         Return(),
     ).assert_block(cobol_block)
+
+
+def test_reduce_empty_continue_branches_in_loop(cobol_block):
+    """
+       loop.
+         if x > y
+             go to loop.
+         if x > z
+             go to loop.
+
+         perform b.
+         go to loop.
+
+       unused-finish.
+         exit.
+"""
+    ExpectedBlock(
+        Forever(None, ExpectedBlock(
+            If(None,
+               ExpectedBlock(If(None,
+                                ExpectedBlock(PerformSectionStatement(None, None, 'b')),
+                                ExpectedBlock(),
+                                True)),
+               ExpectedBlock(),
+               True),
+        ))
+    ).assert_block(cobol_block)
