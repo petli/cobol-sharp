@@ -58,6 +58,15 @@ class PythonishFormatter(object):
                 self._output.line('return')
                 self._output.line()
 
+            elif isinstance(stmt, While):
+                self._output.line()
+                self._output.line('while {}{}:'.format(
+                    'not ' if stmt.invert_condition else '',
+                    stmt.cobol_branch_stmt.condition))
+                with self._output.indent():
+                    self.format_block(stmt.block)
+                self._output.line()
+
             elif isinstance(stmt, Forever):
                 self._output.line()
                 self._output.line('while True:')

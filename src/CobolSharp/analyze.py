@@ -7,6 +7,9 @@ from .structure import *
 
 suppressed_cobol_statements = (GoToStatement, TerminatingStatement, NextSentenceStatement)
 
+def suppress_statements(stmts):
+    return [s for s in stmts if not isinstance(s, suppressed_cobol_statements)]
+
 
 class ReductionScope(object):
     def __init__(self, graph, keep_all_cobol_stmts=False):
@@ -55,8 +58,16 @@ class ReductionScope(object):
         return self.unreduced_join_edges(node) <= 1
 
 
-    def node_in_scope(self, node):
-        """Return True if the node belongs to this scope.
+    def is_node_main_scope(self, node):
+        """Return True if this is the main scope for this node, i.e. there is
+        no child scope that the node also belongs to.
+        """
+        # Root scope accepts all nodes
+        return True
+
+
+    def is_node_scope(self, node):
+        """Return True if the node belongs to this scope or a child scope.
         """
         # Root scope accepts all nodes
         return True
@@ -77,14 +88,14 @@ class LoopReductionScope(ReductionScope):
             return
 
         # Does it belong to this loop?
-        if self.node_in_scope(redux.dest_node):
+        if self.is_node_main_scope(redux.dest_node):
             super(LoopReductionScope, self).add_tail_redux(redux)
             return
 
         # Does it break into the parent loop?
-        if possible_loop_break and self._parent.node_in_scope(redux.dest_node):
+        if possible_loop_break and self._parent.is_node_main_scope(redux.dest_node):
             # Can only be a break if all edges to the dest_node belongs in this loop scope
-            if False not in (self.node_in_scope(n)
+            if False not in (self.is_node_main_scope(n)
                              for n in self._graph.predecessors_iter(redux.dest_node)):
                 reduxes = self._get_tail_reduxes(self._break_reduxes, redux.dest_node)
                 reduxes.append(redux)
@@ -94,8 +105,12 @@ class LoopReductionScope(ReductionScope):
         self._parent.add_tail_redux(redux, possible_loop_break=False)
 
 
-    def node_in_scope(self, node):
+    def is_node_main_scope(self, node):
         return node is not None and self._loop is self._graph.node[node].get('loop')
+
+
+    def is_node_scope(self, node):
+        return node is not None and self._loop in self._graph.node[node].get('loops', ())
 
 
     def pop_continue_node(self):
@@ -125,6 +140,24 @@ class ReductionBase(object):
         edges = self._graph.out_edges(node, data=True)
         assert len(edges) == 1
         return edges[0]
+
+
+    def _out_condition_edges(self, branch_node):
+        """Follow the condition edges leading out from a branch node, returning a tuple
+        (then_edge, else_edge) where each edge is a tuple (node, dest_node, edge_data).
+        """
+
+        then_edge = else_edge = None
+
+        for edge in self._graph.out_edges(branch_node, data=True):
+            data = edge[2]
+            if data['condition'] == True:
+                then_edge = edge
+            elif data['condition'] == False:
+                else_edge = edge
+
+        assert then_edge and else_edge
+        return then_edge, else_edge
 
 
 class BlockReduction(ReductionBase):
@@ -227,7 +260,7 @@ class BlockReduction(ReductionBase):
 
     def _add_statements(self, stmts):
         if not self._scope.keep_all_cobol_stmts:
-            stmts = [s for s in stmts if not isinstance(s, suppressed_cobol_statements)]
+            stmts = suppress_statements(stmts)
 
         self.block.stmts.extend(stmts)
 
@@ -257,13 +290,10 @@ class IfReduction(ReductionBase):
     def __init__(self, graph, scope, branch_node):
         super(IfReduction, self).__init__(graph, scope)
 
-        edges = self._graph.out_edges(branch_node, data=True)
-        assert len(edges) == 2
+        then_edge, else_edge = self._out_condition_edges(branch_node)
 
-        self._then = BlockReduction(self._graph, self._scope,
-                                    start_edge=self._get_condition_edge(edges, True))
-        self._else = BlockReduction(self._graph, self._scope,
-                                    start_edge=self._get_condition_edge(edges, False))
+        self._then = BlockReduction(self._graph, self._scope, start_edge=then_edge)
+        self._else = BlockReduction(self._graph, self._scope, start_edge=else_edge)
 
         self._invert_condition = False
         self._tail_stmts = []
@@ -306,12 +336,12 @@ class IfReduction(ReductionBase):
 
         # Similar logic to terminating blocks, but for loops: if one
         # branch leaves the loop, make it the then_block
-        if (self._scope.node_in_scope(self._then.dest_node)
-            and not self._scope.node_in_scope(self._else.dest_node)):
+        if (self._scope.is_node_main_scope(self._then.dest_node)
+            and not self._scope.is_node_main_scope(self._else.dest_node)):
             self._flip_branches()
 
-        if (not self._scope.node_in_scope(self._then.dest_node)
-            and self._scope.node_in_scope(self._else.dest_node)):
+        if (not self._scope.is_node_main_scope(self._then.dest_node)
+            and self._scope.is_node_main_scope(self._else.dest_node)):
             self._remove_else_branch()
             self._scope.add_tail_redux(self._then)
             return
@@ -320,16 +350,6 @@ class IfReduction(ReductionBase):
         # anything about them
         self._scope.add_tail_redux(self._then)
         self._scope.add_tail_redux(self._else)
-
-
-    def _get_condition_edge(self, edges, value):
-        """Return the edge where attribute 'condition' has the desired value."""
-        for edge in edges:
-            data = edge[2]
-            if data['condition'] == value:
-                return edge
-
-        assert False, 'None of the edges have the expected condition'
 
 
     def _flip_branches(self):
@@ -352,15 +372,88 @@ class LoopReduction(ReductionBase):
         self._node = loop_node
         self._scope = LoopReductionScope(parent_scope, loop_node)
 
-        redux = BlockReduction(self._graph, self._scope, start_edge=self._out_edge(loop_node))
+        start_edge = self._out_edge(loop_node)
+
+        if self._reduce_while(start_edge):
+            return
+
+        self._reduce_forever(start_edge)
+
+
+    def _reduce_while(self, start_edge):
+        """If start_edge fulfils the condition for a while loop, reduce it and return True.
+
+        To be a while loop the first node must be a Branch without any
+        preceding statements, one edge of the branch must belong to
+        the loop scope (or a sub scope), while the other edge must
+        leave the scope into a parent scope without any additional
+        statements.  The edge leaving the loop will be the dest node
+        for the whole loop.
+
+        """
+
+        src_node, dest_node, edge_data = start_edge
+
+        if not isinstance(dest_node, Branch):
+            return False
+
+        if suppress_statements(edge_data['stmts']):
+            return False
+
+        then_edge, else_edge = self._out_condition_edges(dest_node)
+        invert_condition = False
+
+        then_node = then_edge[1]
+        else_node = else_edge[1]
+
+        # Start checking the inverse and flip it if it might qualify
+        if self._scope.is_node_scope(else_node) and not self._scope.is_node_scope(then_node):
+            then_edge, else_edge = else_edge, then_edge
+            then_node, else_node = else_node, then_node
+            invert_condition = True
+
+        if not (self._scope.is_node_scope(then_node) and not self._scope.is_node_scope(else_node)):
+            # Not a qualifying branch
+            return False
+
+        # There cannot be any statements in the else branch for this to be a while loop
+        else_data = else_edge[2]
+        if suppress_statements(else_data['stmts']):
+            return False
+
+        # This is indeed a while branch, so reduce the loop body
+        redux = BlockReduction(self._graph, self._scope, start_edge=then_edge)
         self._resolve_continue_reduxes()
         redux.resolve_tail_nodes()
 
-        # TODO: identify while/do-while loops
+        self.block.stmts.append(While(self._node.stmt.sentence.para, redux.block, dest_node.stmt, invert_condition))
+        self.dest_node = else_node
+
+        # Any inner blocks breaking to dest_node are Breaks(), the other are pushed
+        # to be tail nodes in the parent scope
+        for reduxes in self._scope._break_reduxes.values():
+            for r in reduxes:
+                if r.dest_node is self.dest_node:
+                    self._reduce_break_redux(r)
+                else:
+                    self._scope._parent.add_tail_redux(r, possible_loop_break=False)
+
+        # Successfully resolved
+        return True
+
+
+    def _reduce_forever(self, start_edge):
+        """Reduce a loop that doesn't start with a suitable branch statement
+        into a Forever statement.
+        """
+
+        redux = BlockReduction(self._graph, self._scope, start_edge=start_edge)
+        self._resolve_continue_reduxes()
+        redux.resolve_tail_nodes()
 
         # Infinite loop, unless there's gotos out inside it
-        if isinstance(redux.dest_node, ContinueLoop) and redux.dest_node.loop is loop_node:
-            self.block.stmts.append(Forever(loop_node.stmt.sentence.para, redux.block))
+        if isinstance(redux.dest_node, ContinueLoop) and redux.dest_node.loop is self._node:
+            self.block.stmts.append(Forever(self._node.stmt.sentence.para, redux.block))
 
         # Loop block terminating somewhere else, let the scope handle it
         else:
@@ -379,13 +472,12 @@ class LoopReduction(ReductionBase):
 
         self.dest_node, reduxes = breaks[0]
         for r in reduxes:
-            parent_scope.reduce_join(r.dest_node)
-            r.block.stmts.append(Break())
-            r.dest_node = None
+            self._reduce_break_redux(r)
 
         for node, reduxes in breaks[1:]:
             for r in reduxes:
-                parent_scope.add_tail_redux(r, possible_loop_break=False)
+                self._scope._parent.add_tail_redux(r, possible_loop_break=False)
+
 
     def _resolve_continue_reduxes(self):
         """Handle inner loops that gotos the start of this loop by adding a
@@ -403,4 +495,10 @@ class LoopReduction(ReductionBase):
         for redux in reduxes:
             redux.block.stmts.append(Goto(label))
             redux.dest_node = None
+
+
+    def _reduce_break_redux(self, redux):
+        self._scope._parent.reduce_join(redux.dest_node)
+        redux.block.stmts.append(Break())
+        redux.dest_node = None
 

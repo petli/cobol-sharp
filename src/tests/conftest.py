@@ -136,6 +136,11 @@ class ExpectedBlock:
                 assert s.name == bs.name, 'Expected goto label name {}, got {} at {}'.format(
                     s.name, bs.name, spath)
 
+            elif isinstance(s, While):
+                assert s.invert_condition == bs.invert_condition, 'Expected invert_condition {}, got {} at {}'.format(
+                    s.invert_condition, bs.invert_condition, spath)
+                s.block.assert_block(bs.block, spath)
+
             elif isinstance(s, Forever):
                 s.block.assert_block(bs.block, spath)
 

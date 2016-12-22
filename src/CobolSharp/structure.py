@@ -107,6 +107,14 @@ class Forever(object):
         self.cobol_para = cobol_para
         self.block = block
 
+class While(object):
+    """Code structure: a while loop with a condition."""
+    def __init__(self, cobol_para, block, cobol_branch_stmt, invert_condition):
+        self.cobol_para = cobol_para
+        self.block = block
+        self.cobol_branch_stmt = cobol_branch_stmt
+        self.invert_condition = invert_condition
+
 class Break(object):
     """Code structure: break the current loop."""
     pass
@@ -115,4 +123,5 @@ class Break(object):
 class Continue(object):
     """Code structure: continue the current loop."""
     pass
+
 
