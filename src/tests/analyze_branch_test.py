@@ -1,4 +1,5 @@
 # Copyright 2016 Peter Liljenberg <peter.liljenberg@gmail.com>
+# Licensed under GPLv3, see file LICENSE in the top directory
 
 import pytest
 

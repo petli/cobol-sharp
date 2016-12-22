@@ -1,4 +1,5 @@
 # Copyright 2016 Peter Liljenberg <peter.liljenberg@gmail.com>
+# Licensed under GPLv3, see file LICENSE in the top directory
 
 class Source(object):
     def __init__(self, text, from_char, to_char, from_line, to_line, from_column, to_column):
