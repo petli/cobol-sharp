@@ -12,19 +12,43 @@ def suppress_statements(stmts):
     return [s for s in stmts if not isinstance(s, suppressed_cobol_statements)]
 
 
-class ReductionScope(object):
+class ReductionScopeBase(object):
+    """Keeps track of reductions going on in a graph scope.
+
+    There's a root scope for each section, and then a child scope is
+    created for each nested loop being reduced.
+    """
+
     def __init__(self, graph, keep_all_cobol_stmts=False):
         self._graph = graph
-        self.keep_all_cobol_stmts = keep_all_cobol_stmts
+        self._keep_all_cobol_stmts = keep_all_cobol_stmts
 
         # Map from join node to a count of the number of reduced in edges to that join in this scope
         self._reduced_joins = {}
 
-        # Map unreduced destination nodes to the reduxes going to them
         self._tail_reduxes = {}
 
 
+    @property
+    def keep_all_cobol_stmts(self):
+        return self._keep_all_cobol_stmts
+
+
+    @property
+    def tail_reduxes(self):
+        """A tail redux has been reduced as far as possible in the current scope,
+        but still continues to a dest_node (e.g. an unreducible goto).
+
+        This is a dictionary where the key is a dest node and the
+        value is a list of ReductionBase objects that points to that
+        node.
+        """
+        return self._tail_reduxes
+
+
     def add_tail_redux(self, redux, possible_loop_break=True):
+        """Add a possible tail redux to this scope or a parent scope.
+        """
         if redux.dest_node is None:
             return
 
@@ -41,6 +65,8 @@ class ReductionScope(object):
 
 
     def reduce_join(self, node):
+        """Increase the count of reduced in edges to a Join node.
+        """
         n = self._reduced_joins.get(node, 0)
         self._reduced_joins[node] = n + 1
 
@@ -63,25 +89,56 @@ class ReductionScope(object):
         """Return True if this is the main scope for this node, i.e. there is
         no child scope that the node also belongs to.
         """
-        # Root scope accepts all nodes
-        return True
+        raise NotImplementedError()
 
 
     def is_node_scope(self, node):
         """Return True if the node belongs to this scope or a child scope.
         """
+        raise NotImplementedError()
+
+
+class RootReductionScope(ReductionScopeBase):
+    """The root redux scope for a section.
+    """
+
+    def is_node_main_scope(self, node):
+        # Root scope accepts all nodes
+        return True
+
+    def is_node_scope(self, node):
         # Root scope accepts all nodes
         return True
 
 
-class LoopReductionScope(ReductionScope):
+class LoopReductionScope(ReductionScopeBase):
+    """The redux scope for a loop level.  A scope is created for each Loop
+    node.
+    """
+
     def __init__(self, parent, loop):
         super(LoopReductionScope, self).__init__(parent._graph, parent.keep_all_cobol_stmts)
         self._parent = parent
         self._loop = loop
-
-        # Like _tail_reduxes, but for nodes pointing into parent scope
         self._break_reduxes = {}
+
+
+    @property
+    def parent(self):
+        """The parent scope."""
+        return self._parent
+
+
+    @property
+    def break_reduxes(self):
+        """A break redux is similar to a tail redux, but its dest node belongs
+        to the parent scope and can thus be reduced with a break statement.
+
+        This is a dictionary where the key is a dest node and the
+        value is a list of ReductionBase objects that points to that
+        node.
+        """
+        return self._break_reduxes
 
 
     def add_tail_redux(self, redux, possible_loop_break=True):
@@ -115,6 +172,9 @@ class LoopReductionScope(ReductionScope):
 
 
     def pop_continue_node(self):
+        """Pop a tail redux that continues to the start of this loop and return it.
+        If there are no more such reduxes, None is returned.
+        """
         nodes = [n for n in self._tail_reduxes
                  if isinstance(n, ContinueLoop) and n.loop == self._loop]
 
@@ -126,12 +186,31 @@ class LoopReductionScope(ReductionScope):
 
 
 class ReductionBase(object):
+    """A redux traverses a portion of the graph, attempting to reduce as many
+    nodes and edges as possible into a statement Block.
+    """
+
     def __init__(self, graph, scope):
         self._graph = graph
         self._scope = scope
+        self._block = Block()
+        self._dest_node = None
 
-        self.block = Block()
-        self.dest_node = None
+    @property
+    def block(self):
+        """The statement Block for this redux.
+        """
+        return self._block
+
+
+    @property
+    def dest_node(self):
+        """The destination node that the code in the block must continue to.
+
+        If the redux could be completely reduced by adding statements
+        to the block, this is set to None.
+        """
+        return self._dest_node
 
 
     def _out_edge(self, node):
@@ -162,19 +241,19 @@ class ReductionBase(object):
 
 
 class BlockReduction(ReductionBase):
-    def __init__(self, graph, scope, start_edge=None, start_node=None):
-        """Reduce a structured section of the graph into a single block.
-        This is a recursive operation that reduces blocks in contained if-statements into their
-        own blocks, which are then folded into this block until nothing more can be reduced.
+    """A reduction of a structured section of the graph into a single block.
 
-        If start_edge is not None, it must have a single out edge
+    This is a recursive operation that reduces blocks in contained
+    branch or loop statements into their own blocks, which are
+    then folded into this block until nothing more can be reduced.
+    """
+
+    def __init__(self, graph, scope, start_edge=None, start_node=None):
+        """If start_edge is not None, start_node must have a single out edge
         which is the start of the block.  Otherwise start_edge is the
         starting edge which is used for the traversal.
-
-        If parent is not None, this block will use that for detecting
-        reductions and storing tail nodes.  Must not be set outside a
-        recursive reduction.
         """
+
         super(BlockReduction, self).__init__(graph, scope)
 
         if start_edge is not None:
@@ -186,7 +265,7 @@ class BlockReduction(ReductionBase):
             node = start_node
             skip_join_check = True
 
-        # Reduce a sequence of branches if possible by
+        # Reduce a sequence of branches or loops if possible by
         # looping as long as all join paths are accounted for
         while not (node is None or node is Exit or isinstance(node, ContinueLoop)):
             if skip_join_check:
@@ -207,22 +286,28 @@ class BlockReduction(ReductionBase):
                 node = self._traverse_edge(node)
 
         # Reached a non-reducible node
-        self.dest_node = node
+        self._dest_node = node
 
 
     def resolve_tail_nodes(self):
+        """Resolve all tail nodes in the scope for this redux.
+
+        These are nodes that couldn't be resolved in a structured way,
+        so each such node will be the target of a goto statement.
+        """
+
         # Process all tail nodes until all have been reduced.  Since
         # tail nodes might be added during this process, iterate
         # over _tail_reduxes until all nodes are in node_reduxes.
 
         node_reduxes = {}
-        while len(node_reduxes) < len(self._scope._tail_reduxes):
-            for node in self._scope._tail_reduxes.keys():
+        while len(node_reduxes) < len(self._scope.tail_reduxes):
+            for node in self._scope.tail_reduxes.keys():
                 if node not in node_reduxes:
                     redux = BlockReduction(self._graph, self._scope, start_node=node)
                     node_reduxes[node] = redux
 
-                    if redux.dest_node is Exit:
+                    if redux._dest_node is Exit:
                         redux.block.stmts.append(Return())
                     else:
                         self._scope.add_tail_redux(redux)
@@ -230,7 +315,7 @@ class BlockReduction(ReductionBase):
                     break
 
         # All nodes processed, add them to this block in source code order
-        tail_reduxes = sorted(self._scope._tail_reduxes.items(), key = lambda n: n[0].source.from_char)
+        tail_reduxes = sorted(self._scope.tail_reduxes.items(), key = lambda n: n[0].source.from_char)
 
         node_labels = {}
         for node, reduxes in tail_reduxes:
@@ -249,7 +334,7 @@ class BlockReduction(ReductionBase):
             # Wire source blocks to point to this label
             for redux in reduxes:
                 redux.block.stmts.append(Goto(label))
-                redux.dest_node = None
+                redux._dest_node = None
 
             node_labels[node] = label
 
@@ -313,11 +398,11 @@ class IfReduction(ReductionBase):
         if self._then.dest_node == self._else.dest_node:
             self._scope.reduce_join(self._then.dest_node)
 
-            # Flip empty then branches
+            # Flip empty then branches to avoid an unnecessary else
             if not self._then.block.stmts:
                 self._flip_branches()
 
-            self.dest_node = self._then.dest_node
+            self._dest_node = self._then.dest_node
             return
 
         # Different paths
@@ -332,7 +417,7 @@ class IfReduction(ReductionBase):
         if self._then.dest_node is Exit:
             self._remove_else_branch()
             self._then.block.stmts.append(Return())
-            self._then.dest_node = None
+            self._then._dest_node = None
             return
 
         # Similar logic to terminating blocks, but for loops: if one
@@ -359,14 +444,15 @@ class IfReduction(ReductionBase):
 
 
     def _remove_else_branch(self):
-        self.dest_node = self._else.dest_node
+        self._dest_node = self._else.dest_node
         self._tail_stmts = self._else.block.stmts
-        self._else.block = Block()
+        self._else._block = Block()
 
 
 class LoopReduction(ReductionBase):
     """Reduce a Loop node, recursing into the block.
     """
+
     def __init__(self, graph, parent_scope, loop_node):
         super(LoopReduction, self).__init__(graph, parent_scope)
 
@@ -390,7 +476,6 @@ class LoopReduction(ReductionBase):
         leave the scope into a parent scope without any additional
         statements.  The edge leaving the loop will be the dest node
         for the whole loop.
-
         """
 
         src_node, dest_node, edge_data = start_edge
@@ -428,16 +513,16 @@ class LoopReduction(ReductionBase):
         redux.resolve_tail_nodes()
 
         self.block.stmts.append(While(self._node.stmt.sentence.para, redux.block, dest_node.stmt, invert_condition))
-        self.dest_node = else_node
+        self._dest_node = else_node
 
         # Any inner blocks breaking to dest_node are Breaks(), the other are pushed
         # to be tail nodes in the parent scope
-        for reduxes in self._scope._break_reduxes.values():
+        for reduxes in self._scope.break_reduxes.values():
             for r in reduxes:
                 if r.dest_node is self.dest_node:
                     self._reduce_break_redux(r)
                 else:
-                    self._scope._parent.add_tail_redux(r, possible_loop_break=False)
+                    self._scope.parent.add_tail_redux(r, possible_loop_break=False)
 
         # Successfully resolved
         return True
@@ -458,32 +543,33 @@ class LoopReduction(ReductionBase):
 
         # Loop block terminating somewhere else, let the scope handle it
         else:
-            self.dest_node = redux.dest_node
+            self._dest_node = redux.dest_node
             self._scope.add_tail_redux(self)
 
         # No blocks breaking into the outer scope, so this cannot be reduced further.
-        if not self._scope._break_reduxes:
+        if not self._scope.break_reduxes:
             return
 
         # Let the node that most blocks break to be the next node
         # after the loop, and push the others to be tail nodes in the
         # parent scope.
 
-        breaks = sorted(self._scope._break_reduxes.items(), key=lambda n: -len(n[1]))
+        breaks = sorted(self._scope.break_reduxes.items(), key=lambda n: -len(n[1]))
 
-        self.dest_node, reduxes = breaks[0]
+        self._dest_node, reduxes = breaks[0]
         for r in reduxes:
             self._reduce_break_redux(r)
 
         for node, reduxes in breaks[1:]:
             for r in reduxes:
-                self._scope._parent.add_tail_redux(r, possible_loop_break=False)
+                self._scope.parent.add_tail_redux(r, possible_loop_break=False)
 
 
     def _resolve_continue_reduxes(self):
         """Handle inner loops that gotos the start of this loop by adding a
         label to the loop as a whole and goto statements to the inner reduxes.
         """
+
         reduxes = self._scope.pop_continue_node()
         if not reduxes:
             return
@@ -495,11 +581,11 @@ class LoopReduction(ReductionBase):
 
         for redux in reduxes:
             redux.block.stmts.append(Goto(label))
-            redux.dest_node = None
+            redux._dest_node = None
 
 
     def _reduce_break_redux(self, redux):
-        self._scope._parent.reduce_join(redux.dest_node)
+        self._scope.parent.reduce_join(redux.dest_node)
         redux.block.stmts.append(Break())
-        redux.dest_node = None
+        redux._dest_node = None
 

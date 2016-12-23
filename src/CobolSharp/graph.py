@@ -4,7 +4,7 @@
 import networkx as nx
 from .syntax import *
 from .structure import *
-from .analyze import BlockReduction, ReductionScope
+from .analyze import BlockReduction, RootReductionScope
 
 class StmtGraph(object):
     """Holds a directional graph of statements as nodes including the
@@ -193,7 +193,7 @@ class AcyclicBranchGraph(BranchJoinGraph):
         """Translate the graph structure to a Block of CobolStatement or
         structure elements and return it.
         """
-        scope = ReductionScope(self.graph, keep_all_cobol_stmts)
+        scope = RootReductionScope(self.graph, keep_all_cobol_stmts)
         redux = BlockReduction(self.graph, scope, start_node=Entry)
         redux.resolve_tail_nodes()
         return redux.block
