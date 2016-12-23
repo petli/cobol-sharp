@@ -212,10 +212,14 @@ class ProgramParser(object):
         try:
             parse_func = getattr(self, '_parse_stmt_' + stmt_type_el.tag)
         except AttributeError:
-            raise ParserError('line {}: unsupported statement type: {}'.format(
-                stmt_el.get('from-line'), stmt_type_el.tag))
+            return self._unparsed_stmt(stmt_el, sentence, next_stmt)
 
-        stmt = parse_func(stmt_type_el, sentence, next_stmt)
+        return parse_func(stmt_type_el, sentence, next_stmt)
+
+
+    def _unparsed_stmt(self, stmt_el, sentence, next_stmt):
+        stmt = UnparsedStatement(self._source(stmt_el), sentence)
+        stmt.next_stmt = next_stmt
         return stmt
 
 

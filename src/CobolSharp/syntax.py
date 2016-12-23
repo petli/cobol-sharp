@@ -148,6 +148,9 @@ class PerformSectionStatement(SequentialStatement):
         self.section_name = section_name
         self.section = None
 
+class UnparsedStatement(SequentialStatement):
+    pass
+
 
 class TerminatingStatement(CobolStatement):
     pass

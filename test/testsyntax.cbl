@@ -10,6 +10,7 @@
 
        procedure division.
            move 'x' to a.
+           initialize b.
        main-do.
            perform sub.
            go to main-exit.
