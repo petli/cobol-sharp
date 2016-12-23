@@ -10,7 +10,7 @@ pytest_runner = ['pytest-runner'] if needs_pytest else []
 setup(
     name = 'cobol-sharp',
     version = '0.1',
-#    license = 'MIT',
+    license = 'GPLv3',
     description = 'Cobol code revisualiser',
     author = 'Peter Liljenberg',
     author_email = 'peter.liljenberg@gmail.com',
@@ -38,6 +38,7 @@ setup(
 
     install_requires = [
         'networkx ~= 1.11',
+        'pygraphviz ~= 1.3',
     ],
 
     tests_require = [
