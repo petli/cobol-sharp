@@ -7,6 +7,7 @@ from .syntax import *
 class PythonishFormatter(object):
     def __init__(self, output):
         self._output = output
+        output.link_prefix = '# '
 
     def format_method(self, method):
         self._output.line('def {}:'.format(method.cobol_section.name),
