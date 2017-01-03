@@ -27,7 +27,7 @@ class Outputter(object):
     def anchor(self, label):
         pass
 
-    def line(self, text='', link=None):
+    def line(self, text='', source=None, ref_para=None, ref_section=None, link=None):
         if not text:
             if self._last_line_was_empty or self._first_line_after_indent:
                 return
@@ -36,13 +36,16 @@ class Outputter(object):
             self._first_line_after_indent = False
             self._last_line_was_empty = False
 
-        self._output_line(str(text), link)
+        self._output_line(str(text), source, ref_para, ref_section, link)
 
-    def _output_line(self, text, link):
+    def _output_line(self, text, source, ref_para, ref_section, link):
         raise NotImplementedError()
 
 
 class TextOutputter(Outputter):
+    """Output formatted code as a text source file.
+    """
+
     INDENT_SPACES = 4
     LINK_COLUMN = 60
 
@@ -50,16 +53,27 @@ class TextOutputter(Outputter):
         super(TextOutputter, self).__init__()
         self._file = output_file
 
-    def _output_line(self, text, link):
+    def _output_line(self, text, source, ref_para, ref_section, link):
         self._file.write(' ' * self.INDENT_SPACES * self._indent)
         self._file.write(text)
 
-        if link is not None:
+        refs = []
+
+        if source:
+            refs.append('@{}'.format(source.from_line))
+
+        if ref_para and ref_para.name:
+            refs.append(ref_para.name)
+
+        if ref_section:
+            refs.append('{} section'.format(ref_section.name))
+
+        if refs:
             w = self.INDENT_SPACES * self._indent + len(str(text))
             if w < self.LINK_COLUMN:
                 self._file.write(' ' * (self.LINK_COLUMN - w))
 
-            self._file.write('{}{}'.format(self.link_prefix, link))
+            self._file.write('{}{}'.format(self.link_prefix, ', '.join(refs)))
 
         self._file.write('\n')
 

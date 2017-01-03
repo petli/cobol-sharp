@@ -10,8 +10,9 @@ class PythonishFormatter(object):
         output.link_prefix = '# '
 
     def format_method(self, method):
+        self._output.anchor('func.{}'.format(method.cobol_section.name))
         self._output.line('def {}:'.format(method.cobol_section.name),
-                          link='{} section'.format(method.cobol_section.name))
+                          ref_section=method.cobol_section)
 
         with self._output.indent():
             self.format_block(method.block)
@@ -30,7 +31,7 @@ class PythonishFormatter(object):
                 self._output.line('if {}{}:'.format(
                     'not ' if stmt.invert_condition else '',
                     stmt.cobol_stmt.condition),
-                                  link=stmt.cobol_stmt.source.from_line)
+                                  source=stmt.cobol_stmt.source)
 
                 with self._output.indent():
                     self.format_block(stmt.then_block)
@@ -43,17 +44,15 @@ class PythonishFormatter(object):
                 self._output.line()
 
             elif isinstance(stmt, GotoLabel):
-                link = None
-                if stmt.cobol_para:
-                    link = stmt.cobol_para.name
-
                 # Borrow label syntax from ada
                 self._output.line()
-                self._output.anchor(stmt.name)
-                self._output.line('<<<{}>>>'.format(stmt.name), link=link)
+                self._output.anchor('label.{}'.format(stmt.name))
+                self._output.line('<<<{}>>>'.format(stmt.name), ref_para=stmt.cobol_para)
 
             elif isinstance(stmt, Goto):
-                self._output.line('goto {}'.format(stmt.label.name), link=stmt.label.name)
+                self._output.line('goto {}'.format(stmt.label.name),
+                                  link='label.{}'.format(stmt.label.name),
+                                  ref_para=stmt.label.cobol_para)
                 self._output.line()
 
             elif isinstance(stmt, Return):
@@ -64,14 +63,18 @@ class PythonishFormatter(object):
                 self._output.line()
                 self._output.line('while {}{}:'.format(
                     'not ' if stmt.invert_condition else '',
-                    stmt.cobol_branch_stmt.condition))
+                    stmt.cobol_branch_stmt.condition),
+                                  source=stmt.cobol_branch_stmt.source,
+                                  ref_para=stmt.cobol_para)
+
                 with self._output.indent():
                     self.format_block(stmt.block)
+
                 self._output.line()
 
             elif isinstance(stmt, Forever):
                 self._output.line()
-                self._output.line('while True:')
+                self._output.line('while True:', ref_para=stmt.cobol_para)
                 with self._output.indent():
                     self.format_block(stmt.block)
                 self._output.line()
@@ -83,7 +86,7 @@ class PythonishFormatter(object):
                 self._output.line('continue')
 
             elif isinstance(stmt, CobolStatement):
-                self._output.line(stmt.source, link=stmt.source.from_line)
+                self._output.line(stmt.source, source=stmt.source)
 
             else:
                 assert False, 'unkonwn statement: {}'.format(repr(stmt))
