@@ -5,6 +5,6 @@
 
 from .koopa import parse
 from .graph import StmtGraph, BranchJoinGraph, AcyclicBranchGraph
-from .output import Outputter, TextOutputter
+from .output import Outputter, TextOutputter, HtmlOutputter
 from .format import PythonishFormatter
 

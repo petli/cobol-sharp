@@ -26,6 +26,9 @@ setup(
     package_data = {
         'CobolSharp': [
             'data/koopa-*.jar',
+            'templates/*.html',
+            'templates/*.css',
+            'templates/*.js',
         ],
     },
     include_package_data = True,
@@ -39,6 +42,7 @@ setup(
     install_requires = [
         'networkx ~= 1.11',
         'pygraphviz ~= 1.3',
+        'Jinja2 ~= 2.8',
     ],
 
     tests_require = [

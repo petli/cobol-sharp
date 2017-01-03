@@ -16,7 +16,8 @@ OUTPUT_FORMATS = [
     'stmt_graph',
     'branch_graph',
     'acyclic_graph',
-    'code'
+    'code',
+    'html'
     ]
 
 def main(args):
@@ -30,7 +31,17 @@ def main(args):
 
 
 def process_program(args, output_base, program):
-    formatter = PythonishFormatter(TextOutputter(sys.stdout))
+    if args.format == 'code':
+        outputter = TextOutputter(sys.stdout)
+    elif args.format == 'html':
+        outputter = HtmlOutputter(program, open('{}.html'.format(output_base), 'wt', encoding='utf-8'))
+    else:
+        outputter = None
+
+    if outputter:
+        formatter = PythonishFormatter(outputter)
+    else:
+        formatter = None
 
     for section in program.proc_div.sections_in_order():
         full_graph = StmtGraph.from_section(section)
@@ -60,6 +71,8 @@ def process_program(args, output_base, program):
         block = dag.flatten_block()
         formatter.format_method(Method(section, block))
 
+    if outputter:
+        outputter.close()
 
 #
 # Set up the command argument parsing
@@ -67,7 +80,7 @@ def process_program(args, output_base, program):
 
 parser = argparse.ArgumentParser(description='Cobol revisualiser')
 parser.add_argument('sources', nargs='+', help='Cobol source files', metavar="COBOL_FILE")
-parser.add_argument('-f', '--format', help='output format', choices=OUTPUT_FORMATS, default='code')
+parser.add_argument('-f', '--format', help='output format', choices=OUTPUT_FORMATS, default='html')
 
 
 if __name__ == '__main__':

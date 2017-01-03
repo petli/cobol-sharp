@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>CobolSharp</title>
+  <style type="text/css">
+    {% include "source.css" %}
+  </style>
+</head>
+<body>
+
+  <div id="cobol">
+    <table class="source">
+      {% for line in cobol_lines -%}
+
+      <tr id="cobol.{{ line.number }}" class="{{ line | cobol_line.class }}">
+        <td class="lineno"><a href="#cobol.{{ line.number }}">{{ line.number }}</a></td>
+        <td class="code" id="{{ line | cobol_line.anchor }}"
+            ><a href="#{{ line | cobol_line.href }}">{{ line.text |e }}</a></td>
+      </tr>
+
+      {%- endfor %}
+    </table>
+  </div>
+
+  <div id="output">
+    <table class="source">
+      {% for line in output_lines -%}
+
+      <tr id="output.{{ line.number }}" class="{{ line | output_line.class }}">
+        <td class="lineno"><a href="#output.{{ line.number }}">{{ line.number }}</a></td>
+        <td class="code" id="{{ line.anchor }}"
+            ><a href="#{{ line | output_line.href }}"
+                >{{ ' ' * 4 * line.indent }}{{ line.text |e }}</a></td>
+      </tr>
+
+      {%- endfor %}
+    </table>
+  </div>
+
+</body>
+</html>
