@@ -122,7 +122,7 @@ class ProgramParser(object):
         if name_el is not None:
             name = name_el.text.lower()
         else:
-            name = None
+            name = '__main'
 
         section = Section(name, self._source(section_el))
 
