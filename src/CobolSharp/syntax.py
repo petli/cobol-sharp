@@ -14,6 +14,9 @@ class Source(object):
     def __str__(self):
         return self.text[self.from_char : self.to_char + 1]
 
+    def __repr__(self):
+        return '<Source char {0.from_char}-{0.to_char}, line {0.from_line}-{0.to_line}, column {0.from_column}-{0.to_column}>'.format(self)
+
 
 class Program(object):
     def __init__(self, source, proc_div):
@@ -64,6 +67,10 @@ class Section(object):
             '\n'.join([str(p) for p in self.paras_in_order()]))
 
 
+    def __repr__(self):
+        return '<Section {}>'.format(self.name)
+
+
 class Paragraph(object):
     def __init__(self, name, source, section):
         self.name = name
@@ -88,6 +95,10 @@ class Paragraph(object):
             '\n'.join([str(s) for s in self.sentences]))
 
 
+    def __repr__(self):
+        return '<Paragraph {} in {}>'.format(self.name, repr(self.section))
+
+
 class Sentence(object):
     def __init__(self, source, para):
         self.source = source
@@ -99,6 +110,9 @@ class Sentence(object):
     def __str__(self):
         return '\n'.join([str(s) for s in self.stmts])
 
+    def __repr__(self):
+        return '<Sentence {}>'.format(repr(self.source))
+
 
 class CobolStatement(object):
     def __init__(self, source, sentence):
@@ -107,6 +121,9 @@ class CobolStatement(object):
 
     def __str__(self):
         return '{:5d}      {}'.format(self.source.from_line, self.__class__.__name__)
+
+    def __repr__(self):
+        return '<{} {}>'.format(self.__class__.__name__, repr(self.source))
 
 
 class BranchStatement(CobolStatement):

@@ -72,7 +72,7 @@ def cobol_debug_graph(cobol_stmt_graph, cobol_dag, request):
     print('############################################')
 
     nx.nx_agraph.write_dot(cobol_stmt_graph.graph, '{}_stmt_graph.dot'.format(request.function.__name__))
-    nx.nx_agraph.write_dot(cobol_dag.graph, '{}_dag.dot'.format(request.function.__name__))
+    cobol_dag.write_dot('{}_dag.dot'.format(request.function.__name__))
 
 
 @pytest.fixture(scope='function')

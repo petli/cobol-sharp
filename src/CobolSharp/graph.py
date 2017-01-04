@@ -2,6 +2,8 @@
 # Licensed under GPLv3, see file LICENSE in the top directory
 
 import networkx as nx
+from pygraphviz import AGraph
+
 from .syntax import *
 from .structure import *
 from .analyze import BlockReduction, RootReductionScope
@@ -175,6 +177,44 @@ class BranchJoinGraph(object):
                 print('-> {}'.format(next_node))
 
 
+    def write_dot(self, output_path):
+        """Write a graphviz .dot representation of the graph to output_path.
+        """
+
+        # Since the edge attributes are lost by
+        # nx.nx_agraph.write_dot(), transfer everything to an AGraph
+        # ourselves.
+
+        ag = AGraph(directed=True, strict=False, labeljust='l')
+
+        for src, dest, data in self.graph.edges_iter(data=True):
+            src_id = str(id(src))
+            dest_id = str(id(dest))
+
+            if src_id not in ag:
+                ag.add_node(src_id, label=str(src))
+
+            if dest_id not in ag:
+                ag.add_node(dest_id, label=str(dest))
+
+            stmts = data['stmts']
+            condition = data.get('condition')
+
+            label = ''
+            if condition is not None:
+                label = 'if {}:\n'.format(condition)
+
+            label += '\n'.join((str(s) for s in stmts))
+
+
+            if label:
+                ag.add_edge(src_id, dest_id, label=label)
+            else:
+                ag.add_edge(src_id, dest_id)
+
+        ag.write(output_path)
+
+
 class AcyclicBranchGraph(BranchJoinGraph):
     """Similar to a BranchJoinGraph, but loops are broken up by adding
     Loop and ContinueLoop nodes to produce a DAG.
@@ -284,5 +324,4 @@ class AcyclicBranchGraph(BranchJoinGraph):
         if node_loops is None:
             node_loops = self.graph.node[node]['loops'] = set()
         node_loops.add(loop)
-
 
