@@ -177,7 +177,7 @@ def test_reduce_empty_continue_branches_in_loop(cobol_block):
     ).assert_block(cobol_block)
 
 
-def test_break_while_loop(cobol_block, cobol_debug):
+def test_break_while_loop(cobol_block):
     """
        loop.
          if x > y
@@ -203,3 +203,32 @@ def test_break_while_loop(cobol_block, cobol_debug):
         PerformSectionStatement(None, None, 'c'),
     ).assert_block(cobol_block)
 
+
+def test_continue_loop_in_nested_if(cobol_block):
+    """
+       loop.
+         perform a.
+
+         if x > y
+             if x > z
+                 go to loop.
+
+         perform b.
+         go to loop.
+
+       unused-finish.
+         exit.
+"""
+    ExpectedBlock(
+        Forever(None, ExpectedBlock(
+            PerformSectionStatement(None, None, 'a'),
+            If(None,
+               ExpectedBlock(If(None,
+                                ExpectedBlock(Continue()),
+                                ExpectedBlock(),
+                                False)),
+               ExpectedBlock(),
+               False),
+            PerformSectionStatement(None, None, 'b')
+        ))
+    ).assert_block(cobol_block)

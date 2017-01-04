@@ -328,8 +328,15 @@ class BlockReduction(ReductionBase):
                     stmt = node.stmt
 
                 para = stmt.sentence.para
-                assert stmt == para.get_first_stmt()
-                label = GotoLabel(para.name or '__start', para)
+
+                # TODO: we'd like this to be true, but may not be able to
+                # reduce all goto tangles properly:
+                # assert stmt == para.get_first_stmt()
+
+                if stmt == para.get_first_stmt() and para.name:
+                    label = GotoLabel(para.name, para)
+                else:
+                    label = GotoLabel('__line{}'.format(stmt.source.from_line), None)
 
             # Wire source blocks to point to this label
             for redux in reduxes:
@@ -430,6 +437,19 @@ class IfReduction(ReductionBase):
             and self._scope.is_node_main_scope(self._else.dest_node)):
             self._remove_else_branch()
             self._scope.add_tail_redux(self._then)
+            return
+
+        # Similar logic to terminating blocks, but for loops: if one
+        # branch continues to the start of the loop, make it the then_block
+        if (isinstance(self._else.dest_node, ContinueLoop)
+            and self._scope.is_node_main_scope(self._else.dest_node)):
+            self._flip_branches()
+
+        if (isinstance(self._then.dest_node, ContinueLoop)
+            and self._scope.is_node_main_scope(self._then.dest_node)):
+            self._remove_else_branch()
+            self._then.block.stmts.append(Continue())
+            self._then._dest_node = None
             return
 
         # Paths diverge and one doesn't exit or leave loop, cannot do

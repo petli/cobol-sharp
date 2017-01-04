@@ -106,7 +106,7 @@ def test_structured_if(cobol_block):
     ).assert_block(cobol_block)
 
 
-def test_reduced_crossed_if_branches(cobol_block, cobol_debug):
+def test_reduced_crossed_if_branches(cobol_block):
     """
            if b > 0
                if b > 1
