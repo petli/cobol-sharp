@@ -95,7 +95,6 @@ class HtmlOutputter(Outputter):
         self._file = output_file
         self._program = cobol_program
 
-        # TODO: untabify source code
         self._cobol_lines = [CobolLine(i + 1, line)
                              for i, line
                              in enumerate(cobol_program.source.text.split('\n'))]

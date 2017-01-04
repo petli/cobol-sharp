@@ -17,7 +17,7 @@ from .syntax import *
 
 class ParserError(Exception): pass
 
-def parse(source, java_binary = 'java'):
+def parse(source, java_binary='java', tabsize=4):
     """Parse Cobol code in 'source', which must be a text file-like object
     with a read() method or a string.
 
@@ -31,7 +31,7 @@ def parse(source, java_binary = 'java'):
     else:
         raise TypeError('source must be a file-like object or a string')
 
-    return ProgramParser(code, java_binary).program
+    return ProgramParser(code.expandtabs(tabsize), java_binary).program
 
 
 class ProgramParser(object):
