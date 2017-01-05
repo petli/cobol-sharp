@@ -52,11 +52,23 @@ def cobol_block(cobol_dag):
     """Analyze the Cobol code in the doc string of the test function
     and return it as a Block object.
     """
-    return cobol_dag.flatten_block()
+    block = cobol_dag.flatten_block()
+
+    # Output the block as python to help understanding failing tests.
+    # PyTest will swallow this if the test is fine.
+
+    print('############################################')
+    print()
+    formatter = PythonishFormatter(TextOutputter(sys.stdout))
+    formatter.format_block(block)
+    print()
+    print('############################################')
+
+    return block
 
 
 @pytest.fixture(scope='function')
-def cobol_debug_graph(cobol_stmt_graph, cobol_dag, request):
+def cobol_debug(cobol_stmt_graph, cobol_dag, request):
     """Add this as dependency to a unit test to debug it by printing the
     different code graphs and writing DOT files for the graphs.
     """
@@ -73,29 +85,6 @@ def cobol_debug_graph(cobol_stmt_graph, cobol_dag, request):
 
     nx.nx_agraph.write_dot(cobol_stmt_graph.graph, '{}_stmt_graph.dot'.format(request.function.__name__))
     cobol_dag.write_dot('{}_dag.dot'.format(request.function.__name__))
-
-
-@pytest.fixture(scope='function')
-def cobol_debug_block(cobol_block):
-    """Add this as dependency to a unit test to debug it by printing the
-    formatted pythonish code.
-    """
-
-    formatter = PythonishFormatter(TextOutputter(sys.stdout))
-
-    print('############################################')
-    print()
-    formatter.format_block(cobol_block)
-    print()
-    print('############################################')
-
-
-@pytest.fixture(scope='function')
-def cobol_debug(cobol_debug_graph, cobol_debug_block):
-    """Add this as dependency to a unit test to debug it by printing the
-    both the code graphs and the formatted pythonish code.
-    """
-    pass
 
 
 class ExpectedBlock:
