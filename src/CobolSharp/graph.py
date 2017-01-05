@@ -163,7 +163,7 @@ class BranchJoinGraph(object):
         nodes = self.graph.nodes()
         nodes.sort(key = lambda n: n.source.from_char)
         for node in nodes:
-            loops = self.graph.node[node].get('loops', ())
+            loops = self.graph.node[node].get('scopes', ())
             print('{} [{}]'.format(node, ', '.join([str(loop) for loop in loops])))
             for n, next_node, data in self.graph.out_edges_iter(node, data=True):
                 if data.get('condition') == True:
@@ -225,8 +225,12 @@ class AcyclicBranchGraph(BranchJoinGraph):
     All edges that pointed to the original join node is replaced by an
     edge to a ContinueLoop node that references the Loop node object.
 
-    Each node in a loop will have an attribute 'loops', which is a
-    set of all the Loop objects it belongs to.
+    Each node in a loop will have two attributes:
+      - 'scopes': a set of all the Loop objects it belongs to
+      - 'scope': the inner-most Loop object it belongs to
+
+    The Loop object itself does not belong to the loop, since it will
+    be replaced by a statement that wraps the loop statements.
     """
 
     def flatten_block(self, keep_all_cobol_stmts=False):
@@ -278,9 +282,15 @@ class AcyclicBranchGraph(BranchJoinGraph):
 
         start_node = self._find_loop_start(component)
 
+        # Copy the loop attributes from the start node
+        start_node_scope = self.graph.node[start_node].get('scope')
+        start_node_scopes = self.graph.node[start_node].get('scopes', set())
+
         loop = Loop(start_node.stmt)
+        self.graph.add_node(loop, scope=start_node_scope, scopes=start_node_scopes)
+
         continue_loop = ContinueLoop(loop)
-        self.graph.add_node(continue_loop, loop=loop, loops=[loop])
+        self.graph.add_node(continue_loop, scope=loop, scopes=start_node_scopes.union(set((loop, ))))
 
         for node in component:
             self._tag_node_in_loop(node, loop)
@@ -318,10 +328,10 @@ class AcyclicBranchGraph(BranchJoinGraph):
 
 
     def _tag_node_in_loop(self, node, loop):
-        self.graph.node[node]['loop'] = loop
+        self.graph.node[node]['scope'] = loop
 
-        node_loops = self.graph.node[node].get('loops')
+        node_loops = self.graph.node[node].get('scopes')
         if node_loops is None:
-            node_loops = self.graph.node[node]['loops'] = set()
+            node_loops = self.graph.node[node]['scopes'] = set()
         node_loops.add(loop)
 

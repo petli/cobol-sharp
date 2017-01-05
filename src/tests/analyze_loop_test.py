@@ -139,14 +139,13 @@ def test_break_from_inner_loop(cobol_block):
                 PerformSectionStatement(None, None, 'inner-b'))),
 
             If(None,
-               ExpectedBlock(Goto(finish_outer_label)),
+               ExpectedBlock(Break()),
                ExpectedBlock(),
                False),
             PerformSectionStatement(None, None, 'outer-b'))),
 
         finish_outer_label,
         PerformSectionStatement(None, None, 'c'),
-        Return(),
     ).assert_block(cobol_block)
 
 

@@ -56,6 +56,7 @@ class Loop(object):
     def __init__(self, stmt):
         self.stmt = stmt
         self.source = stmt.source
+        self.nodes = set()
 
     def __str__(self):
         return 'Loop {}'.format(self.source.from_line)
