@@ -156,7 +156,7 @@ def filter_output_line_class(line):
     if not line.text:
         return ''
 
-    return 'indent{}'.format(line.indent % 8)
+    return 'level{}'.format(line.indent % 8)
 
 
 def filter_output_line_href(line):
@@ -176,6 +176,9 @@ class CobolLine(object):
     def __init__(self, number, text):
         self.number = number
         self.text = text
+        code = text.lstrip()
+        self.whitespace = text[:len(text) - len(code)]
+        self.code = code.rstrip()
         self.used = False
         self.output_line = None
         self.para = None
@@ -186,10 +189,14 @@ def filter_cobol_line_class(line):
     if not line.used:
         return 'unused'
 
-    if line.output_line:
-        return 'indent{}'.format(line.output_line.indent % 8)
-
     return ''
+
+
+def filter_cobol_line_level(line):
+    if not line.used:
+        return ''
+
+    return 'level{}'.format(line.output_line.indent % 8)
 
 
 def filter_cobol_line_anchor(line):
@@ -216,6 +223,7 @@ template_env = Environment(loader=PackageLoader('CobolSharp', 'templates'))
 template_env.filters['output_line.class'] = filter_output_line_class
 template_env.filters['output_line.href'] = filter_output_line_href
 template_env.filters['cobol_line.class'] = filter_cobol_line_class
+template_env.filters['cobol_line.level'] = filter_cobol_line_level
 template_env.filters['cobol_line.anchor'] = filter_cobol_line_anchor
 template_env.filters['cobol_line.href'] = filter_cobol_line_href
 

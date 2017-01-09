@@ -23,76 +23,111 @@ div#output {
 }
 
 
-table.source {
+div.source {
     color: black;
     background-color: white;
     border: none;
     width: 100%;
 }
 
-table.source td {
-    padding: 0px 5px;
+div.source div:target {
+    font-weight: bold;
+}
+
+div.source div.line {
     font-family: monospace;
+    white-space: nowrap;
+    margin-top: 1px;
 }
 
-table.source tr:target {
-    font-weight: bold;
-}
-
-table.source td:target {
-    font-weight: bold;
-}
-
-/* Color scheme from http://www.colorschemer.com/schemes/viewscheme.php?id=8924 */
-table.source tr.indent0 td.code {
-    background-color: #c4daf4;
-}
-
-table.source tr.indent1 td.code {
-    background-color: #c4f0f4;
-}
-
-table.source tr.indent2 td.code {
-    background-color: #c7f5c4;
-}
-
-table.source tr.indent3 td.code {
-    background-color: #fffecc;
-}
-
-table.source tr.indent4 td.code {
-    background-color: #ffeacc;
-}
-
-table.source tr.indent5 td.code {
-    background-color: #ffcccc;
-}
-
-table.source tr.indent6 td.code {
-    background-color: #e1c4f5;
-}
-
-table.source tr.indent7 td.code {
-    background-color: #c9c4f4;
-}
-
-
-td.lineno {
+div.lineno {
+    display: inline-block;
     text-align: right;
-    width: 5ex;
+    min-width: 5ex;
 }
 
-td.code {
+div.code {
+    display: inline-block;
     text-align: left;
     white-space: pre;
 }
 
-td.code a {
+div.code a {
     color: black;
     text-decoration-line: none;
 }
 
-tr.unused td.code a {
+div.unused div.code a {
     color: #888;
+}
+
+/* Color scheme from http://www.colorschemer.com/schemes/viewscheme.php?id=8924 */
+span.level0 {
+    background-color: #c4daf4;
+}
+
+span.level1 {
+    background-color: #c4f0f4;
+}
+
+span.level2 {
+    background-color: #c7f5c4;
+}
+
+span.level3 {
+    background-color: #fffecc;
+}
+
+span.level4 {
+    background-color: #ffeacc;
+}
+
+span.level5 {
+    background-color: #ffcccc;
+}
+
+span.level6 {
+    background-color: #e1c4f5;
+}
+
+span.level7 {
+    background-color: #c9c4f4;
+}
+
+
+span.indent {
+    outline: 1px solid;
+}
+
+span.indent0 {
+    outline-color: #c4daf4;
+}
+
+span.indent1 {
+    outline-color: #c4f0f4;
+}
+
+span.indent2 {
+    outline-color: #c7f5c4;
+}
+
+span.indent3 {
+    outline-color: #fffecc;
+}
+
+span.indent4 {
+    outline-color: #ffeacc;
+}
+
+span.indent5 {
+    outline-color: #ffcccc;
+}
+
+span.indent6 {
+    outline-color: #e1c4f5;
+}
+
+span.indent7 {
+    outline-color: #c9c4f4;
 }
 

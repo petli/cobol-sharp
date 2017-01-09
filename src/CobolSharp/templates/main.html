@@ -10,32 +10,31 @@
 <body>
 
   <div id="cobol">
-    <table class="source">
+    <div class="source">
       {% for line in cobol_lines -%}
 
-      <tr id="cobol.{{ line.number }}" class="{{ line | cobol_line.class }}">
-        <td class="lineno"><a href="#cobol.{{ line.number }}">{{ line.number }}</a></td>
-        <td class="code" id="{{ line | cobol_line.anchor }}"
-            ><a href="#{{ line | cobol_line.href }}">{{ line.text |e }}</a></td>
-      </tr>
+      <div id="cobol.{{ line.number }}" class="line {{ line | cobol_line.class }}">
+        <div class="lineno"><a href="#cobol.{{ line.number }}">{{ line.number }}</a></div>
+        <div class="code" id="{{ line | cobol_line.anchor }}"><a href="#{{ line | cobol_line.href }}">{{ line.whitespace }}<span class="{{ line | cobol_line.level }}">{{ line.code |e }}</span></a></div>
+      </div>
 
       {%- endfor %}
-    </table>
+    </div>
   </div>
 
   <div id="output">
-    <table class="source">
+    <div class="source">
       {% for line in output_lines -%}
 
-      <tr id="output.{{ line.number }}" class="{{ line | output_line.class }}">
-        <td class="lineno"><a href="#output.{{ line.number }}">{{ line.number }}</a></td>
-        <td class="code" id="{{ line.anchor }}"
-            ><a href="#{{ line | output_line.href }}"
-                >{{ ' ' * 4 * line.indent }}{{ line.text |e }}</a></td>
-      </tr>
+      <div id="output.{{ line.number }}" class="line {{ line | output_line.class }}">
+        <div class="lineno"><a href="#output.{{ line.number }}">{{ line.number }}</a></div>
+        <div class="code" id="{{ line.anchor }}"><a href="#{{ line | output_line.href }}">
+            {%- for i in range(line.indent) %}<span class="indent indent{{ i % 8 }}"></span>    {% endfor -%}
+            <span class="level{{ line.indent % 8 }}">{{ line.text |e }}</span></a></div>
+      </div>
 
       {%- endfor %}
-    </table>
+    </div>
   </div>
 
 </body>
