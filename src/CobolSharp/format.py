@@ -34,6 +34,13 @@ class PythonishFormatter(object):
                 with self._output.indent():
                     self.format_block(stmt.then_block)
 
+                while len(stmt.else_block.stmts) == 1 and isinstance(stmt.else_block.stmts[0], If):
+                    stmt = stmt.else_block.stmts[0]
+                    self._output.line('elif {}:'.format(stmt.condition),
+                                      source=stmt.condition.source)
+                    with self._output.indent():
+                        self.format_block(stmt.then_block)
+
                 if stmt.else_block.stmts:
                     self._output.line('else:')
                     with self._output.indent():

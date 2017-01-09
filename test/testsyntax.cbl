@@ -32,7 +32,11 @@
                move 1 to b
                go to sub-exit.
 
-           move 2 to b.
+           if x = 'z'
+               move 2 to b
+           else
+               move 3 to b.
+
        sub-exit.
            exit.
 
