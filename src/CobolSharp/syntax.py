@@ -126,6 +126,25 @@ class CobolStatement(object):
         return '<{} {}>'.format(self.__class__.__name__, repr(self.source))
 
 
+class ConditionExpression(object):
+    def __init__(self, source, inverted=False):
+        self.source = source
+        self.inverted = inverted
+
+    def invert(self):
+        """Return a new ConditionExpression object which is inverted."""
+        return ConditionExpression(self.source, not self.inverted)
+
+    def __str__(self):
+        if self.inverted:
+            return 'not ({})'.format(self.source)
+        else:
+            return str(self.source)
+
+    def __repr__(self):
+        return '<ConditionExpression invert={}: {}>'.format(self.invert, repr(self.source))
+
+
 class BranchStatement(CobolStatement):
     def __init__(self, source, sentence):
         super(BranchStatement, self).__init__(source, sentence)

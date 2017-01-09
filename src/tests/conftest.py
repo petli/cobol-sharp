@@ -32,27 +32,35 @@ def cobol_stmt_graph(request):
 
 
 @pytest.fixture(scope='function')
-def cobol_branch_graph(cobol_stmt_graph):
-    """Return a BranchJoinGraph of the Cobol code in the
+def cobol_structure_graph(cobol_stmt_graph):
+    """Return a CobolStructureGraph of the Cobol code in the
     doc string of the unit test function.
     """
-    return BranchJoinGraph.from_stmt_graph(cobol_stmt_graph)
+    return CobolStructureGraph.from_stmt_graph(cobol_stmt_graph)
 
 
 @pytest.fixture(scope='function')
-def cobol_dag(cobol_branch_graph):
-    """Return an AcyclicBranchGraph of the Cobol code in the
+def cobol_dag(cobol_structure_graph):
+    """Return an AcyclicStructureGraph of the Cobol code in the
     doc string of the unit test function.
     """
-    return AcyclicBranchGraph.from_branch_graph(cobol_branch_graph)
+    return AcyclicStructureGraph.from_cobol_graph(cobol_structure_graph)
 
 
 @pytest.fixture(scope='function')
-def cobol_block(cobol_dag):
+def cobol_scope_graph(cobol_dag):
+    """Return an ScopeStructuredGraph of the Cobol code in the
+    doc string of the unit test function.
+    """
+    return ScopeStructuredGraph.from_acyclic_graph(cobol_dag)
+
+
+@pytest.fixture(scope='function')
+def cobol_block(cobol_scope_graph):
     """Analyze the Cobol code in the doc string of the test function
     and return it as a Block object.
     """
-    block = cobol_dag.flatten_block()
+    block = cobol_scope_graph.flatten_block()
 
     # Output the block as python to help understanding failing tests.
     # PyTest will swallow this if the test is fine.
@@ -68,7 +76,7 @@ def cobol_block(cobol_dag):
 
 
 @pytest.fixture(scope='function')
-def cobol_debug(cobol_stmt_graph, cobol_dag, request):
+def cobol_debug(cobol_stmt_graph, cobol_scope_graph, request):
     """Add this as dependency to a unit test to debug it by printing the
     different code graphs and writing DOT files for the graphs.
     """
@@ -79,12 +87,12 @@ def cobol_debug(cobol_stmt_graph, cobol_dag, request):
     print()
     print('############################################')
     print()
-    cobol_dag.print_nodes()
+    cobol_scope_graph.print_nodes()
     print()
     print('############################################')
 
     nx.nx_agraph.write_dot(cobol_stmt_graph.graph, '{}_stmt_graph.dot'.format(request.function.__name__))
-    cobol_dag.write_dot('{}_dag.dot'.format(request.function.__name__))
+    cobol_scope_graph.write_dot('{}_scope.dot'.format(request.function.__name__))
 
 
 class ExpectedBlock:
@@ -113,8 +121,8 @@ class ExpectedBlock:
                     s.section_name, bs.section_name, spath)
 
             elif isinstance(s, If):
-                assert s.invert_condition == bs.invert_condition, 'Expected invert_condition {}, got {} at {}'.format(
-                    s.invert_condition, bs.invert_condition, spath)
+                assert s.condition.inverted == bs.condition.inverted, 'Expected inverted {}, got {} at {}'.format(
+                    s.condition.inverted, bs.condition.inverted, spath)
                 s.then_block.assert_block(bs.then_block, spath + ':then')
                 s.else_block.assert_block(bs.else_block, spath + ':else')
 
@@ -127,8 +135,8 @@ class ExpectedBlock:
                     s.name, bs.name, spath)
 
             elif isinstance(s, While):
-                assert s.invert_condition == bs.invert_condition, 'Expected invert_condition {}, got {} at {}'.format(
-                    s.invert_condition, bs.invert_condition, spath)
+                assert s.condition.inverted == bs.condition.inverted, 'Expected inverted {}, got {} at {}'.format(
+                    s.condition.inverted, bs.condition.inverted, spath)
                 s.block.assert_block(bs.block, spath)
 
             elif isinstance(s, Forever):

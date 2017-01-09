@@ -43,12 +43,11 @@ def test_return_in_loop(cobol_block):
     ExpectedBlock(
         Forever(None, ExpectedBlock(
             PerformSectionStatement(None, None, 'a'),
-            If(None,
+            If(None, ConditionExpression(None, False),
                ExpectedBlock(
                    PerformSectionStatement(None, None, 'c'),
                    Return()),
-               ExpectedBlock(),
-               False),
+               ExpectedBlock()),
             PerformSectionStatement(None, None, 'b')))
     ).assert_block(cobol_block)
 
@@ -73,14 +72,12 @@ def test_break_from_loop(cobol_block):
     ExpectedBlock(
         Forever(None, ExpectedBlock(
             PerformSectionStatement(None, None, 'a'),
-            If(None,
+            If(None, ConditionExpression(None, False),
                ExpectedBlock(Break()),
-               ExpectedBlock(),
-               False),
-            If(None,
+               ExpectedBlock()),
+            If(None, ConditionExpression(None, False),
                ExpectedBlock(Break()),
-               ExpectedBlock(),
-               False),
+               ExpectedBlock()),
             PerformSectionStatement(None, None, 'b'))),
         PerformSectionStatement(None, None, 'c'),
     ).assert_block(cobol_block)
@@ -124,24 +121,20 @@ def test_break_from_inner_loop(cobol_block):
 
             Forever(None, ExpectedBlock(
                 PerformSectionStatement(None, None, 'inner-a'),
-                If(None,
+                If(None, ConditionExpression(None, False),
                    ExpectedBlock(Break()),
-                   ExpectedBlock(),
-                   False),
-                If(None,
+                   ExpectedBlock()),
+                If(None, ConditionExpression(None, False),
                    ExpectedBlock(Break()),
-                   ExpectedBlock(),
-                   False),
-                If(None,
+                   ExpectedBlock()),
+                If(None, ConditionExpression(None, False),
                    ExpectedBlock(Goto(finish_outer_label)),
-                   ExpectedBlock(),
-                   False),
+                   ExpectedBlock()),
                 PerformSectionStatement(None, None, 'inner-b'))),
 
-            If(None,
+            If(None, ConditionExpression(None, False),
                ExpectedBlock(Break()),
-               ExpectedBlock(),
-               False),
+               ExpectedBlock()),
             PerformSectionStatement(None, None, 'outer-b'))),
 
         finish_outer_label,
@@ -165,13 +158,11 @@ def test_reduce_empty_continue_branches_in_loop(cobol_block):
 """
     ExpectedBlock(
         Forever(None, ExpectedBlock(
-            If(None,
-               ExpectedBlock(If(None,
+            If(None, ConditionExpression(None, True),
+               ExpectedBlock(If(None, ConditionExpression(None, True),
                                 ExpectedBlock(PerformSectionStatement(None, None, 'b')),
-                                ExpectedBlock(),
-                                True)),
-               ExpectedBlock(),
-               True),
+                                ExpectedBlock())),
+               ExpectedBlock()),
         ))
     ).assert_block(cobol_block)
 
@@ -193,12 +184,11 @@ def test_break_while_loop(cobol_block):
 """
     ExpectedBlock(
         While(None, ExpectedBlock(
-                If(None,
+                If(None, ConditionExpression(None, False),
                    ExpectedBlock(Break()),
-                   ExpectedBlock(),
-                   False),
+                   ExpectedBlock()),
                 PerformSectionStatement(None, None, 'b')),
-              None, True),
+              None, ConditionExpression(None, True)),
         PerformSectionStatement(None, None, 'c'),
     ).assert_block(cobol_block)
 
@@ -221,13 +211,11 @@ def test_continue_loop_in_nested_if(cobol_block):
     ExpectedBlock(
         Forever(None, ExpectedBlock(
             PerformSectionStatement(None, None, 'a'),
-            If(None,
-               ExpectedBlock(If(None,
+            If(None, ConditionExpression(None, False),
+               ExpectedBlock(If(None, ConditionExpression(None, False),
                                 ExpectedBlock(Continue()),
-                                ExpectedBlock(),
-                                False)),
-               ExpectedBlock(),
-               False),
+                                ExpectedBlock())),
+               ExpectedBlock()),
             PerformSectionStatement(None, None, 'b')
         ))
     ).assert_block(cobol_block)

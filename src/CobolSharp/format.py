@@ -28,10 +28,8 @@ class PythonishFormatter(object):
         for stmt in block.stmts:
             if isinstance(stmt, If):
                 self._output.line()
-                self._output.line('if {}{}:'.format(
-                    'not ' if stmt.invert_condition else '',
-                    stmt.cobol_stmt.condition),
-                                  source=stmt.cobol_stmt.condition)
+                self._output.line('if {}:'.format(stmt.condition),
+                                  source=stmt.condition.source)
 
                 with self._output.indent():
                     self.format_block(stmt.then_block)
@@ -62,10 +60,8 @@ class PythonishFormatter(object):
 
             elif isinstance(stmt, While):
                 self._output.line()
-                self._output.line('while {}{}:'.format(
-                    'not ' if stmt.invert_condition else '',
-                    stmt.cobol_branch_stmt.condition),
-                                  source=stmt.cobol_branch_stmt.condition,
+                self._output.line('while {}:'.format(stmt.condition),
+                                  source=stmt.cobol_branch_stmt.condition.source,
                                   href_para=stmt.cobol_para)
 
                 with self._output.indent():

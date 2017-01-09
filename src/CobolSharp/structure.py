@@ -1,12 +1,27 @@
 # Copyright 2016 Peter Liljenberg <peter.liljenberg@gmail.com>
 # Licensed under GPLv3, see file LICENSE in the top directory
 
+class NodeBase(object):
+    """Base class for all nodes in the structure graphs."""
+
+    def __init__(self):
+        self.scope = None
+
+
+class JumpNodeBase(NodeBase):
+    """Base class for all nodes that represent any kind of jump
+    (i.e. something that cannot be expressed in Jackson Structured
+    Processing diagrams).
+    """
+    pass
+
+
 class _DummySource(object):
     """This is only used to enable sorting of Entry/Exit with CobolStatements."""
     def __init__(self, from_char):
         self.from_char = from_char
 
-class _Entry(object):
+class _Entry(NodeBase):
     """Singleton used as the entry node in all graphs."""
 
     def __str__(self):
@@ -17,7 +32,7 @@ class _Entry(object):
 Entry = _Entry()
 
 
-class _Exit(object):
+class _Exit(JumpNodeBase):
     """Singleton used as the exit node in all graphs."""
 
     def __str__(self):
@@ -28,49 +43,82 @@ class _Exit(object):
 Exit = _Exit()
 
 
-class Branch(object):
-    """A node that branches to then/else edges in BranchJoinGraph."""
+class Branch(NodeBase):
+    """A node that branches to then/else edges in structured graph."""
 
     def __init__(self, stmt):
+        super(Branch, self).__init__()
+        self.stmt = stmt
+        self.condition = stmt.condition
+        self.source = stmt.source
+
+    def __str__(self):
+        return 'Branch {} [{}]'.format(self.stmt, self.scope)
+
+
+class Join(NodeBase):
+    """A node where a number of edges join in a structured, but doesn't branch out again."""
+
+    def __init__(self, stmt):
+        super(Join, self).__init__()
         self.stmt = stmt
         self.source = stmt.source
 
     def __str__(self):
-        return 'Branch {}'.format(self.stmt)
+        return 'Join {} [{}]'.format(self.source.from_line, self.scope)
 
 
-class Join(object):
-    """A node where a number of edges join in BranchJoinGraph, but doesn't branch out again."""
+class Loop(NodeBase):
+    """Start of a loop in a structured graph.
 
-    def __init__(self, stmt):
-        self.stmt = stmt
-        self.source = stmt.source
-
-    def __str__(self):
-        return 'Join {}'.format(self.source.from_line)
-
-
-class Loop(object):
-    """Start of a loop in an AcyclicBranchGraph."""
+    If condition is not None, this is a conditional loop.  The
+    condition=True edge goes into the loop, and condition=False to the
+    statement following the loop.
+    """
 
     def __init__(self, stmt):
         self.stmt = stmt
         self.source = stmt.source
-        self.nodes = set()
+        self.condition = None
+        self.continue_loop = None
+        self.loop_exit = None
 
     def __str__(self):
-        return 'Loop {}'.format(self.source.from_line)
+        return 'Loop {} {} [{}]'.format(self.source.from_line, self.condition, self.scope)
 
 
-class ContinueLoop(object):
-    """Continue to the start of a loop in an AcyclicBranchGraph."""
+class LoopExit(JumpNodeBase):
+    """End of a loop in a structured graph"""
 
     def __init__(self, loop):
+        super(LoopExit, self).__init__()
+        self.loop = loop
+
+    def __str__(self):
+        return 'LoopExit {} [{}]'.format(self.loop.source.from_line, self.scope)
+
+
+class ContinueLoop(JumpNodeBase):
+    """Continue to the start of a loop in an structured graph."""
+
+    def __init__(self, loop):
+        super(ContinueLoop, self).__init__()
         self.loop = loop
         self.source = loop.source
 
     def __str__(self):
-        return 'Continue -> {}'.format(self.loop)
+        return 'Continue -> {} [{}]'.format(self.loop, self.scope)
+
+
+class GotoNode(JumpNodeBase):
+    """Jump to a node in a structured graph."""
+
+    def __init__(self, node):
+        super(GotoNode, self).__init__()
+        self.node = node
+
+    def __str__(self):
+        return 'GotoNode -> {} [{}]'.format(self.node, self.scope)
 
 
 class Method(object):
@@ -83,11 +131,12 @@ class Block(object):
         self.stmts = []
 
 class If(object):
-    def __init__(self, cobol_stmt, then_block, else_block, invert_condition):
+    def __init__(self, cobol_stmt, condition, then_block, else_block):
         self.cobol_stmt = cobol_stmt
+        self.condition = condition
         self.then_block = then_block
         self.else_block = else_block
-        self.invert_condition = invert_condition
+
 
 class GotoLabel(object):
     def __init__(self, name, cobol_para):
@@ -109,13 +158,14 @@ class Forever(object):
         self.cobol_para = cobol_para
         self.block = block
 
-class While(object):
+class While(NodeBase):
     """Code structure: a while loop with a condition."""
-    def __init__(self, cobol_para, block, cobol_branch_stmt, invert_condition):
+    def __init__(self, cobol_para, block, cobol_branch_stmt, condition):
+        super(While, self).__init__()
         self.cobol_para = cobol_para
         self.block = block
         self.cobol_branch_stmt = cobol_branch_stmt
-        self.invert_condition = invert_condition
+        self.condition = condition
 
 class Break(object):
     """Code structure: break the current loop."""

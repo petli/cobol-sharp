@@ -27,3 +27,13 @@
 
        finish.
            exit.
+
+       infinite section.
+         perform a.
+
+       loop.
+         perform b.
+         go to loop.
+
+         perform unreached.
+         exit.

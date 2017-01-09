@@ -15,8 +15,9 @@ import networkx as nx
 OUTPUT_FORMATS = [
     'full_stmt_graph',
     'stmt_graph',
-    'branch_graph',
+    'cobol_graph',
     'acyclic_graph',
+    'scope_graph',
     'code',
     'html'
     ]
@@ -67,21 +68,28 @@ def process_program(args, output_base, program):
             print('wrote', graph_path)
             continue
 
-        branch_join = BranchJoinGraph.from_stmt_graph(reachable)
+        cobol_graph = CobolStructureGraph.from_stmt_graph(reachable)
 
-        if args.format == 'branch_graph':
-            branch_join.write_dot(graph_path)
+        if args.format == 'cobol_graph':
+            cobol_graph.write_dot(graph_path)
             print('wrote', graph_path)
             continue
 
-        dag = AcyclicBranchGraph.from_branch_graph(branch_join)
+        dag = AcyclicStructureGraph.from_cobol_graph(cobol_graph)
 
         if args.format == 'acyclic_graph':
             dag.write_dot(graph_path)
             print('wrote', graph_path)
             continue
 
-        block = dag.flatten_block()
+        scope_graph = ScopeStructuredGraph.from_acyclic_graph(dag)
+
+        if args.format == 'scope_graph':
+            scope_graph.write_dot(graph_path)
+            print('wrote', graph_path)
+            continue
+
+        block = scope_graph.flatten_block()
         formatter.format_method(Method(section, block))
 
     if outputter:

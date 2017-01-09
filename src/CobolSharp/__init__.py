@@ -4,7 +4,7 @@
 # syntax and structure must be imported explicitly by user
 
 from .koopa import parse
-from .graph import StmtGraph, BranchJoinGraph, AcyclicBranchGraph
+from .graph import StmtGraph, CobolStructureGraph, AcyclicStructureGraph, ScopeStructuredGraph
 from .output import Outputter, TextOutputter, HtmlOutputter
 from .format import PythonishFormatter
 

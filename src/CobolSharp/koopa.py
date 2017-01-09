@@ -254,7 +254,7 @@ class ProgramParser(object):
 
         # For now, just grab the source instead of the whole expression
         condition_el = if_el.find('condition')
-        stmt.condition = self._source(condition_el)
+        stmt.condition = ConditionExpression(self._source(condition_el))
 
         else_el = if_el.find('elseBranch')
         if else_el is not None:

@@ -16,10 +16,9 @@ def test_single_if(cobol_block):
          exit.
 """
     ExpectedBlock(
-        If(None,
+        If(None, ConditionExpression(None, False),
            ExpectedBlock(PerformSectionStatement(None, None, 'true-branch')),
-           ExpectedBlock(),
-           False),
+           ExpectedBlock()),
     ).assert_block(cobol_block)
 
 
@@ -32,10 +31,9 @@ def test_single_if_else(cobol_block):
          exit.
 """
     ExpectedBlock(
-        If(None,
+        If(None, ConditionExpression(None, False),
            ExpectedBlock(PerformSectionStatement(None, None, 'true-branch')),
-           ExpectedBlock(PerformSectionStatement(None, None, 'false-branch')),
-           False),
+           ExpectedBlock(PerformSectionStatement(None, None, 'false-branch'))),
     ).assert_block(cobol_block)
 
 
@@ -48,10 +46,9 @@ def test_remove_empty_if_branch(cobol_block):
          exit.
 """
     ExpectedBlock(
-        If(None,
+        If(None, ConditionExpression(None, True),
            ExpectedBlock(PerformSectionStatement(None, None, 'false-branch')),
-           ExpectedBlock(),
-           True),
+           ExpectedBlock()),
     ).assert_block(cobol_block)
 
 
@@ -72,13 +69,11 @@ def test_reduce_goto_structured_if(cobol_block):
            exit.
 """
     ExpectedBlock(
-        If(None,
-           ExpectedBlock(If(None,
+        If(None, ConditionExpression(None, False),
+           ExpectedBlock(If(None, ConditionExpression(None, False),
                             ExpectedBlock(PerformSectionStatement(None, None, 'y')),
-                            ExpectedBlock(PerformSectionStatement(None, None, 'z')),
-                            False)),
-           ExpectedBlock(PerformSectionStatement(None, None, 'x')),
-           False),
+                            ExpectedBlock(PerformSectionStatement(None, None, 'z')))),
+           ExpectedBlock(PerformSectionStatement(None, None, 'x'))),
     ).assert_block(cobol_block)
 
 
@@ -96,13 +91,11 @@ def test_structured_if(cobol_block):
            exit.
 """
     ExpectedBlock(
-        If(None,
-           ExpectedBlock(If(None,
+        If(None, ConditionExpression(None, False),
+           ExpectedBlock(If(None, ConditionExpression(None, False),
                             ExpectedBlock(PerformSectionStatement(None, None, 'y')),
-                            ExpectedBlock(PerformSectionStatement(None, None, 'z')),
-                            False)),
-           ExpectedBlock(PerformSectionStatement(None, None, 'x')),
-           False),
+                            ExpectedBlock(PerformSectionStatement(None, None, 'z')))),
+           ExpectedBlock(PerformSectionStatement(None, None, 'x'))),
     ).assert_block(cobol_block)
 
 
@@ -136,20 +129,16 @@ def test_reduced_crossed_if_branches(cobol_block):
     inner_false_label = GotoLabel('inner-false', None)
 
     ExpectedBlock(
-        If(None,
-           ExpectedBlock(If(None,
-                            ExpectedBlock(PerformSectionStatement(None, None, 'b-plus'),
-                                          Goto(inner_true_label)),
+        If(None, ConditionExpression(None, False),
+           ExpectedBlock(If(None, ConditionExpression(None, True),
                             ExpectedBlock(Goto(inner_false_label)),
-                            False)),
-           ExpectedBlock(If(None,
-                            ExpectedBlock(PerformSectionStatement(None, None, 'b-minus'),
-                                          Goto(inner_true_label)),
+                            ExpectedBlock()),
+                         PerformSectionStatement(None, None, 'b-plus')),
+           ExpectedBlock(If(None, ConditionExpression(None, True),
                             ExpectedBlock(Goto(inner_false_label)),
-                            False)),
-           False),
+                            ExpectedBlock()),
+                         PerformSectionStatement(None, None, 'b-minus'))),
 
-        inner_true_label,
         PerformSectionStatement(None, None, 'inner-true'),
         Return(),
 
@@ -182,19 +171,16 @@ def test_remove_else_when_then_returns(cobol_block):
            exit program.
 """
     ExpectedBlock(
-        If(None,
-           ExpectedBlock(If(None,
+        If(None, ConditionExpression(None, False),
+           ExpectedBlock(If(None, ConditionExpression(None, False),
                             ExpectedBlock(PerformSectionStatement(None, None, 'b-plus'),
                                           Return()),
-                            ExpectedBlock(),
-                            False)),
+                            ExpectedBlock())),
 
-           ExpectedBlock(If(None,
+           ExpectedBlock(If(None, ConditionExpression(None, False),
                             ExpectedBlock(PerformSectionStatement(None, None, 'b-minus'),
                                           Return()),
-                            ExpectedBlock(),
-                            False)),
-           False),
+                            ExpectedBlock()))),
 
         PerformSectionStatement(None, None, 'inner-false'),
     ).assert_block(cobol_block)
@@ -223,19 +209,16 @@ def test_remove_then_when_else_returns(cobol_block):
            exit program.
 """
     ExpectedBlock(
-        If(None,
-           ExpectedBlock(If(None,
+        If(None, ConditionExpression(None, False),
+           ExpectedBlock(If(None, ConditionExpression(None, True),
                             ExpectedBlock(Return()),
-                            ExpectedBlock(),
-                            True),
-                         PerformSectionStatement(None, None, 'b-plus'),),
+                            ExpectedBlock()),
+                         PerformSectionStatement(None, None, 'b-plus')),
 
-           ExpectedBlock(If(None,
+           ExpectedBlock(If(None, ConditionExpression(None, True),
                             ExpectedBlock(Return()),
-                            ExpectedBlock(),
-                            True),
-                         PerformSectionStatement(None, None, 'b-minus'),),
-           False),
+                            ExpectedBlock()),
+                         PerformSectionStatement(None, None, 'b-minus'))),
         PerformSectionStatement(None, None, 'inner-true'),
     ).assert_block(cobol_block)
 
