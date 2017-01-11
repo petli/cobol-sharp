@@ -247,6 +247,10 @@ class ProgramParser(object):
         return stmt
 
 
+    def _parse_stmt_gobackStatement(self, el, sentence, next_stmt):
+        return GobackStatement(self._source(el), sentence)
+
+
     def _parse_stmt_goToStatement(self, goto_el, sentence, next_stmt):
         proc_name_el = goto_el.find('./procedureName/name/cobolWord/t')
         proc_name = proc_name_el.text.lower()
