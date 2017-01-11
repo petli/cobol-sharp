@@ -17,8 +17,11 @@ setup(
     keywords = 'cobol code analysis',
     url = 'https://github.com/petli/cobol-sharp',
 
-    scripts = [ 'src/tools/cobolsharp',
-                ],
+    entry_points = {
+        'console_scripts': [
+            'cobolsharp = CobolSharp.command:main',
+        ],
+    },
 
     package_dir = { '': 'src' },
     packages = [ 'CobolSharp' ],
