@@ -7,6 +7,12 @@ class NodeBase(object):
     def __init__(self):
         self.scope = None
 
+    def _scope_id(self):
+        if self.scope:
+            return self.scope.source.from_line
+        else:
+            return None
+
 
 class JumpNodeBase(NodeBase):
     """Base class for all nodes that represent any kind of jump
@@ -53,7 +59,7 @@ class Branch(NodeBase):
         self.source = stmt.source
 
     def __str__(self):
-        return 'Branch {} [{}]'.format(self.stmt, self.scope)
+        return 'Branch {} [{}]'.format(self.stmt, self._scope_id())
 
 
 class Join(NodeBase):
@@ -65,7 +71,7 @@ class Join(NodeBase):
         self.source = stmt.source
 
     def __str__(self):
-        return 'Join {} [{}]'.format(self.source.from_line, self.scope)
+        return 'Join {} [{}]'.format(self.source.from_line, self._scope_id())
 
 
 class Loop(NodeBase):
@@ -84,7 +90,7 @@ class Loop(NodeBase):
         self.loop_exit = None
 
     def __str__(self):
-        return 'Loop {} {} [{}]'.format(self.source.from_line, self.condition, self.scope)
+        return 'Loop {} {} [{}]'.format(self.source.from_line, self.condition, self._scope_id())
 
 
 class LoopExit(JumpNodeBase):
@@ -95,7 +101,7 @@ class LoopExit(JumpNodeBase):
         self.loop = loop
 
     def __str__(self):
-        return 'LoopExit {} [{}]'.format(self.loop.source.from_line, self.scope)
+        return 'LoopExit {} [{}]'.format(self.loop.source.from_line, self._scope_id())
 
 
 class ContinueLoop(JumpNodeBase):
@@ -107,7 +113,7 @@ class ContinueLoop(JumpNodeBase):
         self.source = loop.source
 
     def __str__(self):
-        return 'Continue -> {} [{}]'.format(self.loop, self.scope)
+        return 'Continue -> {} [{}]'.format(self.loop, self._scope_id())
 
 
 class GotoNode(JumpNodeBase):
@@ -118,7 +124,7 @@ class GotoNode(JumpNodeBase):
         self.node = node
 
     def __str__(self):
-        return 'GotoNode -> {} [{}]'.format(self.node, self.scope)
+        return 'GotoNode -> {} [{}]'.format(self.node, self._scope_id())
 
 
 class Method(object):

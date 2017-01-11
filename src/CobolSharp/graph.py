@@ -10,6 +10,18 @@ from .syntax import *
 from .structure import *
 from .analyze import *
 
+# These are used to make node scopes more visible in scope graphs
+node_scope_colors = [
+    'blue',
+    'red',
+    'green',
+    'purple',
+    'lightblue'
+    'orange',
+    'cyan',
+    'magenta',
+]
+
 class StmtGraph(object):
     """Holds a directional graph of statements as nodes including the
     Entry and Exit nodes.
@@ -98,18 +110,21 @@ class StructureGraphBase(object):
         dot.set_edge_defaults(labeljust='l')
 
         added_nodes = set()
-        
+
+        scope_colors = defaultdict(
+            lambda: node_scope_colors[len(scope_colors) % len(node_scope_colors)])
+
         for src, dest, data in self.graph.edges_iter(data=True):
             src_id = str(id(src))
             dest_id = str(id(dest))
 
             if src_id not in added_nodes:
                 added_nodes.add(src_id)
-                dot.add_node(pydotplus.Node(src_id, label=str(src)))
+                dot.add_node(pydotplus.Node(src_id, label=str(src), color=scope_colors[src.scope]))
 
             if dest_id not in added_nodes:
                 added_nodes.add(dest_id)
-                dot.add_node(pydotplus.Node(dest_id, label=str(dest)))
+                dot.add_node(pydotplus.Node(dest_id, label=str(dest), color=scope_colors[src.scope]))
 
             stmts = data['stmts']
             condition = data.get('condition')
