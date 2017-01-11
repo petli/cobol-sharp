@@ -12,7 +12,9 @@ class Source(object):
         self.to_column = to_column
 
     def __str__(self):
-        return self.text[self.from_char : self.to_char + 1]
+        # Drop any CR in the source (could not be done when reading the source text
+        #  since that would upset the character offsets reported by koopa)
+        return self.text[self.from_char : self.to_char + 1].replace('\r', '')
 
     def __repr__(self):
         return '<Source char {0.from_char}-{0.to_char}, line {0.from_line}-{0.to_line}, column {0.from_column}-{0.to_column}>'.format(self)

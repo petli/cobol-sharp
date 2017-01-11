@@ -24,7 +24,7 @@ OUTPUT_FORMATS = [
 
 def main(args):
     for source_path in args.sources:
-        program = parse(open(source_path, 'rt', encoding=args.encoding), tabsize=args.tabsize)
+        program = parse(open(source_path, 'rt', encoding=args.encoding, newline=''), tabsize=args.tabsize)
 
         if args.destdir:
             output_base = os.path.join(args.destdir, os.path.basename(source_path))
@@ -102,10 +102,12 @@ def process_program(args, output_base, program):
 
 parser = argparse.ArgumentParser(description='Cobol revisualiser')
 parser.add_argument('sources', nargs='+', help='Cobol source files', metavar="COBOL_FILE")
-parser.add_argument('-f', '--format', help='output format', choices=OUTPUT_FORMATS, default='html')
-parser.add_argument('-t', '--tabsize', help='expand tabs by this many spaces', type=int, default=4)
-parser.add_argument('-e', '--encoding', default='utf-8',
-                    help='source file encoding')
+parser.add_argument('-f', '--format', choices=OUTPUT_FORMATS, default='html',
+                    help='output format (default html)')
+parser.add_argument('-t', '--tabsize', type=int, default=4,
+                    help='expand tabs by this many spaces (default 4)')
+parser.add_argument('-e', '--encoding', default='iso-8859-1',
+                    help='source file encoding (default iso-8859-1)')
 parser.add_argument('-d', '--destdir',
                     help='write files to this directory instead of the source code dir')
 

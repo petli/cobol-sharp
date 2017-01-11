@@ -50,8 +50,16 @@ class ProgramParser(object):
         result_file = None
 
         try:
-            source_file = NamedTemporaryFile(mode='w', encoding='utf-8', suffix='.cbl', delete=False)
-            source_file.write(self._code)
+            # Regardless of source encoding, save as a single-byte encoding since Cobol parsing
+            # should only need ascii chars.  Saving as UTF-8 or similar means that the character
+            # ranges reported by koopa will be offset from the data in self._code, breaking extracting
+            # symbols etc.
+
+            # Since NamedTemporaryFile doesn't support specifying encoding error handling,
+            # encode the bytes ourselves to replace non-ascii with ? to preserve char counts.
+            
+            source_file = NamedTemporaryFile(mode='wb', suffix='.cbl', delete=False)
+            source_file.write(self._code.encode('ascii', errors='replace'))
             source_file.close()
 
             # Just grab a temp file name for the results
