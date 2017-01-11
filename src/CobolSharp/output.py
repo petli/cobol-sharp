@@ -179,6 +179,8 @@ class CobolLine(object):
         code = text.lstrip()
         self.whitespace = text[:len(text) - len(code)]
         self.code = code.rstrip()
+        if not self.code:
+            self.whitespace = ''
         self.used = False
         self.output_line = None
         self.para = None

@@ -54,7 +54,7 @@ div.code {
 
 div.code a {
     color: black;
-    text-decoration-line: none;
+    text-decoration: none;
 }
 
 div.unused div.code a {
