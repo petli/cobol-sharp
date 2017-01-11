@@ -91,7 +91,7 @@ def cobol_debug(cobol_stmt_graph, cobol_scope_graph, request):
     print()
     print('############################################')
 
-    nx.nx_agraph.write_dot(cobol_stmt_graph.graph, '{}_stmt_graph.dot'.format(request.function.__name__))
+    nx.nx_pydot.write_dot(cobol_stmt_graph.graph, '{}_stmt_graph.dot'.format(request.function.__name__))
     cobol_scope_graph.write_dot('{}_scope.dot'.format(request.function.__name__))
 
 

@@ -41,7 +41,7 @@ setup(
 
     install_requires = [
         'networkx ~= 1.11',
-        'pygraphviz ~= 1.3',
+        'pydotplus ~= 2.0',
         'Jinja2 ~= 2.8',
     ],
 

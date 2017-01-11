@@ -4,7 +4,7 @@
 from collections import defaultdict
 
 import networkx as nx
-from pygraphviz import AGraph
+import pydotplus
 
 from .syntax import *
 from .structure import *
@@ -92,21 +92,24 @@ class StructureGraphBase(object):
         """Write a graphviz .dot representation of the graph to output_path.
         """
 
-        # Since the edge attributes are lost by
-        # nx.nx_agraph.write_dot(), transfer everything to an AGraph
-        # ourselves.
+        # Write the graph ourselves to output statements as edge labels
 
-        ag = AGraph(directed=True, strict=False, labeljust='l')
+        dot = pydotplus.Dot('', graph_type='digraph', strict=False)
+        dot.set_edge_defaults(labeljust='l')
 
+        added_nodes = set()
+        
         for src, dest, data in self.graph.edges_iter(data=True):
             src_id = str(id(src))
             dest_id = str(id(dest))
 
-            if src_id not in ag:
-                ag.add_node(src_id, label=str(src))
+            if src_id not in added_nodes:
+                added_nodes.add(src_id)
+                dot.add_node(pydotplus.Node(src_id, label=str(src)))
 
-            if dest_id not in ag:
-                ag.add_node(dest_id, label=str(dest))
+            if dest_id not in added_nodes:
+                added_nodes.add(dest_id)
+                dot.add_node(pydotplus.Node(dest_id, label=str(dest)))
 
             stmts = data['stmts']
             condition = data.get('condition')
@@ -117,13 +120,13 @@ class StructureGraphBase(object):
 
             label += '\n'.join((str(s) for s in stmts))
 
-
             if label:
-                ag.add_edge(src_id, dest_id, label=label)
+                dot.add_edge(pydotplus.Edge(src_id, dest_id, label=label))
             else:
-                ag.add_edge(src_id, dest_id)
+                dot.add_edge(pydotplus.Edge(src_id, dest_id))
 
-        ag.write(output_path)
+        with open(output_path, mode='wt', encoding='utf-8') as f:
+            f.write(dot.to_string())
 
 
 class CobolStructureGraph(StructureGraphBase):

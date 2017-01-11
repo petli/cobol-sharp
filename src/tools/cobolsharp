@@ -57,14 +57,14 @@ def process_program(args, output_base, program):
         graph_path = '{}_{}.dot'.format(output_base, section.name)
 
         if args.format == 'full_stmt_graph':
-            nx.nx_agraph.write_dot(full_graph.graph, graph_path)
+            nx.nx_pydot.write_dot(full_graph.graph, graph_path)
             print('wrote', graph_path)
             continue
 
         reachable = full_graph.reachable_subgraph()
 
         if args.format == 'stmt_graph':
-            nx.nx_agraph.write_dot(reachable.graph, graph_path)
+            nx.nx_pydot.write_dot(reachable.graph, graph_path)
             print('wrote', graph_path)
             continue
 
