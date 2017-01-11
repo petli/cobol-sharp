@@ -79,6 +79,11 @@ class RootReductionScope(ReductionScopeBase):
     """The root redux scope for a section.
     """
 
+    # Constant controlling when the code decides that flipping
+    # if-else branches is worth it to remove an else branch
+    invert_if_penalty = 2
+
+
     def __init__(self, graph, keep_all_cobol_stmts=False):
         super(RootReductionScope, self).__init__(graph, None)
         self._keep_all_cobol_stmts = keep_all_cobol_stmts
@@ -149,6 +154,13 @@ class ReductionBase(object):
 
 
     @property
+    def size(self):
+        """The size of this redux block and it's children.
+        """
+        raise NotImplementedError()
+
+
+    @property
     def dest_node(self):
         """The destination node that the code in the block must continue to.
 
@@ -190,6 +202,7 @@ class BlockReduction(ReductionBase):
 
         super(BlockReduction, self).__init__(graph, scope)
         self._unresolved_if_redux = None
+        self._sub_block_size = 0
 
         if start_edge is not None:
             src, node, data = start_edge
@@ -240,11 +253,20 @@ class BlockReduction(ReductionBase):
         self._dest_node = node
 
 
+    @property
+    def size(self):
+        s = len(self._block.stmts) + self._sub_block_size
+        if self._unresolved_if_redux:
+            s += self._unresolved_if_redux.size
+        return s
+
+
     def resolve_dest_node(self, node):
         if self._unresolved_if_redux:
             self._unresolved_if_redux.resolve_branches(node)
             self._block.stmts.extend(self._unresolved_if_redux.block.stmts)
             self._dest_node = self._unresolved_if_redux.dest_node
+            self._sub_block_size += self._unresolved_if_redux.size
             self._unresolved_if_redux = None
 
         # No need to insert any jump here
@@ -342,6 +364,7 @@ class BlockReduction(ReductionBase):
         target_node = self._select_resolved_target_node(resolved_nodes)
         if_redux.resolve_branches(target_node)
         self.block.stmts.extend(if_redux.block.stmts)
+        self._sub_block_size += if_redux.size
 
         assert if_redux.dest_node is target_node
         return target_node
@@ -365,6 +388,8 @@ class BlockReduction(ReductionBase):
                                           loop.condition))
         else:
             self.block.stmts.append(Forever(loop.stmt.sentence.para, redux.block))
+
+        self._sub_block_size += redux.size
 
         if loop.loop_exit:
             src, dest, data = self._out_edge(loop.loop_exit)
@@ -442,6 +467,13 @@ class IfReduction(ReductionBase):
         self._branch_dests.update(self._then.branch_dests)
         self._branch_dests.update(self._else.branch_dests)
 
+    @property
+    def size(self):
+        # Don't return length of block, since that would
+        # double count any statements from a removed else branch
+        # in the parent redux.
+        return 1 + self._then.size + self._else.size
+
 
     def resolve_branches(self, target_node):
         assert self._dest_node is None
@@ -453,14 +485,17 @@ class IfReduction(ReductionBase):
         assert self._else.dest_node is None or self._else.dest_node is target_node
 
         # Flip empty then branches to avoid an unnecessary else
-        if not self._then.block.stmts:
+        if not self._then.block.stmts and self._else.block.stmts:
             self._flip_branches()
 
-        # Also flip if else jumps but then branch doesn't
-        elif self._else.dest_node is None and self._then.dest_node is target_node:
+        # Also flip if else branch jumps and swapping them around is
+        # worthwhile by reducing the number of indented lines
+        elif (self._else.dest_node is None
+              and self._then.dest_node is target_node
+              and self._else.size * self._scope.root.invert_if_penalty < self._then.size):
             self._flip_branches()
 
-        # Remove else branch if then jumps
+        # Remove else branch if then branch jumps
         if self._then.dest_node is None and self._else.dest_node is target_node:
             self._dest_node = self._else.dest_node
             tail_stmts = self._else.block.stmts
