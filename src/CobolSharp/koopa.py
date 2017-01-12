@@ -9,6 +9,7 @@
 
 import subprocess
 import os
+import sys
 from pkg_resources import resource_filename
 from tempfile import NamedTemporaryFile
 import xml.etree.ElementTree as ET
@@ -17,7 +18,7 @@ from .syntax import *
 
 class ParserError(Exception): pass
 
-def parse(source, java_binary='java', tabsize=4):
+def parse(source, java_binary='java', tabsize=4, section=None):
     """Parse Cobol code in 'source', which must be a text file-like object
     with a read() method or a string.
 
@@ -31,19 +32,22 @@ def parse(source, java_binary='java', tabsize=4):
     else:
         raise TypeError('source must be a file-like object or a string')
 
-    return ProgramParser(code.expandtabs(tabsize), java_binary).program
+    return ProgramParser(code.expandtabs(tabsize), java_binary, section).program
 
 
 class ProgramParser(object):
     KOOPA_JAR = 'data/koopa-r356.jar'
 
-    def __init__(self, code, java_binary):
+    def __init__(self, code, java_binary, section):
         self._code = code
 
         self._perform_stmts = []
 
         self._run_koopa(java_binary)
-        self._parse()
+        self._parse(section)
+
+    def _warn(self, element, msg):
+        sys.stderr.write('line {}: {}\n'.format(element.get('from-line'), msg))
 
     def _run_koopa(self, java_binary):
         source_file = None
@@ -93,7 +97,7 @@ class ProgramParser(object):
                 os.remove(result_file.name)
 
 
-    def _parse(self):
+    def _parse(self, section_name):
         unit_el = self._tree.find('compilationGroup')
         proc_div_el = unit_el.find('.//procedureDivision')
 
@@ -115,22 +119,33 @@ class ProgramParser(object):
         if main_para_els:
             section_els.insert(0, self._virtual_element('tag', main_para_els))
 
+        if section_name:
+            section_name = section_name.lower()
+            
+        section = None
         for el in section_els:
-            section = self._parse_section(el)
-            proc_div.sections[section.name] = section
+            name = self._section_name(el)
+            if not section_name or name == section_name:
+                section = self._parse_section(el, name)
+                proc_div.sections[section.name] = section
 
+        if section is None:
+            self._warn(proc_div_el, 'section not found: {}'.format(section_name))
+            
         proc_div.first_section = section
 
 
-    def _parse_section(self, section_el):
-        # Process the paragraphs, sentences and statements backward
-        # to be able to easily link up statements
-
+    def _section_name(self, section_el):
         name_el = section_el.find('./sectionName/name/cobolWord/t')
         if name_el is not None:
-            name = name_el.text.lower()
+            return name_el.text.lower()
         else:
-            name = '__main'
+            return '__main'
+
+
+    def _parse_section(self, section_el, name):
+        # Process the paragraphs, sentences and statements backward
+        # to be able to easily link up statements
 
         section = Section(name, self._source(section_el))
 
@@ -139,16 +154,19 @@ class ProgramParser(object):
         para_els = section_el.findall('paragraph')
         para_els.reverse()
 
-        para = None
-        for el in para_els:
-            para = self._parse_para(el, section, para)
-            section.paras[para.name] = para
-
         # If there are initial sentences before any paragraph, parse
         # them as a dummy paragraph
         sentence_els = section_el.findall('sentence')
         if sentence_els:
-            para = self._parse_para(self._virtual_element('paragraph', sentence_els), section, para)
+            para_els.append(self._virtual_element('paragraph', sentence_els))
+
+        para = None
+        for el in para_els:
+            para = self._parse_para(el, section, para)
+            if para.name in section.paras:
+                self._warn(el, 'duplicate paragraph: {}'.format(para.name))
+                para.name += '__dup{}'.format(id(para))
+
             section.paras[para.name] = para
 
         section.first_para = para
@@ -206,10 +224,11 @@ class ProgramParser(object):
     def _parse_stmts(self, stmt_els, sentence, next_stmt):
         stmt_els.reverse()
 
-        stmt = next_stmt
         for el in stmt_els:
-            stmt = self._parse_stmt(el, sentence, stmt)
-            sentence.stmts.append(stmt)
+            stmt = self._parse_stmt(el, sentence, next_stmt)
+            if stmt is not None:
+                sentence.stmts.append(stmt)
+                next_stmt = stmt
 
         return stmt
 
@@ -232,13 +251,20 @@ class ProgramParser(object):
 
 
     def _parse_stmt_exitStatement(self, exit_el, sentence, next_stmt):
+        source = self._source(exit_el)
         endpoint_el = exit_el.find('./endpoint/t')
 
         if endpoint_el is None:
-            stmt = ExitSectionStatement(self._source(exit_el), sentence)
+            # A no-op Exit statement
+            if next_stmt is not None:
+                self._warn(exit_el, 'EXIT statement (which is a no-op) is not the last one in the section.')
+            stmt = None
+
+        elif endpoint_el is 'section':
+            stmt = ExitSectionStatement(source, sentence)
 
         elif endpoint_el.text.lower() == 'program':
-            stmt = ExitProgramStatement(self._source(exit_el), sentence)
+            stmt = ExitProgramStatement(source, sentence)
 
         else:
             raise ParserError('line {}: unsupported exit statement'.format(

@@ -22,7 +22,9 @@ OUTPUT_FORMATS = [
 def main():
     args = parser.parse_args()
     for source_path in args.sources:
-        program = parse(open(source_path, 'rt', encoding=args.encoding, newline=''), tabsize=args.tabsize)
+        program = parse(open(source_path, 'rt', encoding=args.encoding, newline=''),
+                        tabsize=args.tabsize,
+                        section=args.section)
 
         if args.destdir:
             output_base = os.path.join(args.destdir, os.path.basename(source_path))
@@ -100,6 +102,8 @@ def process_program(args, output_base, program):
 
 parser = argparse.ArgumentParser(description='Cobol revisualiser')
 parser.add_argument('sources', nargs='+', help='Cobol source files', metavar="COBOL_FILE")
+parser.add_argument('-s', '--section',
+                    help='process only the named section')
 parser.add_argument('-f', '--format', choices=OUTPUT_FORMATS, default='html',
                     help='output format (default html)')
 parser.add_argument('-t', '--tabsize', type=int, default=4,

@@ -39,29 +39,32 @@ class StmtGraph(object):
     def from_section(cls, section):
         """Translate a Cobol Section into a statement graph.
         """
-        stmt_graph = cls()
-        g = stmt_graph.graph
+        graph = cls()
 
         for para in section.paras.values():
             for sentence in para.sentences:
                 for stmt in sentence.stmts:
                     if isinstance(stmt, SequentialStatement):
-                        g.add_edge(stmt, stmt.next_stmt)
+                        graph._add_edge(stmt, stmt.next_stmt)
 
                     elif isinstance(stmt, BranchStatement):
-                        g.add_edge(stmt, stmt.true_stmt, condition=True)
-                        g.add_edge(stmt, stmt.false_stmt, condition=False)
+                        graph._add_edge(stmt, stmt.true_stmt, condition=True)
+                        graph._add_edge(stmt, stmt.false_stmt, condition=False)
 
                     elif isinstance(stmt, TerminatingStatement):
-                        g.add_edge(stmt, Exit)
+                        graph._add_edge(stmt, Exit)
 
                     else:
                         raise RuntimeError('Unexpected statement type: {}'.format(stmt))
 
-        g.add_edge(Entry, section.get_first_stmt())
+        graph._add_edge(Entry, section.get_first_stmt())
 
-        return stmt_graph
+        return graph
 
+    def _add_edge(self, src, dest, **attr):
+        if dest is None:
+            dest = Exit
+        self.graph.add_edge(src, dest, attr)
 
     def reachable_subgraph(self):
         """Return a new StmtGraph that only contains the nodes reachable from
@@ -213,7 +216,7 @@ class CobolStructureGraph(StructureGraphBase):
 
 
     def _add_branch_edge(self, stmt_graph, node_stmts, source_node, start_stmt, **attrs):
-        stmt = start_stmt
+        stmt = start_stmt or Exit
         stmts = []
         dest_node = None
 

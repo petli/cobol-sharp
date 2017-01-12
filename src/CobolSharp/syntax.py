@@ -55,7 +55,7 @@ class Section(object):
         if self.first_para:
             return self.first_para.get_first_stmt()
 
-        raise RuntimeError("Empty section doesn't have a first statement")
+        raise None
 
     def paras_in_order(self):
         para = self.first_para
@@ -89,7 +89,7 @@ class Paragraph(object):
         if self.next_para:
             return self.next_para.get_first_stmt()
 
-        raise RuntimeError("Last paragraph in section is empty, cannot find first statement")
+        return None
 
     def __str__(self):
         return '{:5d}  {}.\n{}'.format(
@@ -155,8 +155,18 @@ class BranchStatement(CobolStatement):
         self.false_stmt = None
 
     def __str__(self):
+        if self.true_stmt is not None:
+            true_line = self.true_stmt.source.from_line
+        else:
+            true_line = 'Exit'
+
+        if self.false_stmt is not None:
+            false_line = self.false_stmt.source.from_line
+        else:
+            false_line = 'Exit'
+            
         return '{:5d}      branch -> then {} else {}'.format(
-            self.source.from_line, self.true_stmt.source.from_line, self.false_stmt.source.from_line)
+            self.source.from_line, true_line, false_line)
 
 
 class SequentialStatement(CobolStatement):
@@ -165,7 +175,12 @@ class SequentialStatement(CobolStatement):
         self.next_stmt = None
 
     def __str__(self):
-        return '{:5d}      {} -> {}'.format(self.source.from_line, self.__class__.__name__, self.next_stmt.source.from_line)
+        if self.next_stmt is None:
+            next_line = 'Exit'
+        else:
+            next_line = self.next_stmt.source.from_line
+            
+        return '{:5d}      {} -> {}'.format(self.source.from_line, self.__class__.__name__, next_line)
 
 
 class GoToStatement(SequentialStatement):
