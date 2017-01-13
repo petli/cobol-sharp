@@ -61,6 +61,10 @@ div.unused div.code a {
     color: #888;
 }
 
+span.comment {
+    color: #888;
+}
+
 /* Color scheme from http://www.colorschemer.com/schemes/viewscheme.php?id=8924 */
 span.level0 {
     background-color: #c4daf4;

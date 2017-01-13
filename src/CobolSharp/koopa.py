@@ -53,11 +53,14 @@ def run_koopa(source, output_path, java_binary='java', tabsize=4):
         # ranges reported by koopa will be offset from the data in self._code, breaking extracting
         # symbols etc.
 
+        # But save as iso-8859-1, to keep more national chars in comments.
+        # TODO: use input file encoding if it is single-byte.
+
         # Since NamedTemporaryFile doesn't support specifying encoding error handling,
         # encode the bytes ourselves to replace non-ascii with ? to preserve char counts.
 
         source_file = NamedTemporaryFile(mode='wb', suffix='.cbl', delete=False)
-        source_file.write(code.encode('ascii', errors='replace'))
+        source_file.write(code.encode('iso-8859-1', errors='replace'))
         source_file.close()
 
         jar = resource_filename('CobolSharp', KOOPA_JAR)
@@ -101,7 +104,8 @@ class ProgramParser(object):
 
         try:
             self._code = run_koopa(source, result_file.name, java_binary=java_binary, tabsize=tabsize)
-            self._tree = ET.parse(result_file.name)
+            parser = ET.XMLParser(target=CommentTreeBuilder())
+            self._tree = ET.parse(result_file.name, parser=parser)
         finally:
             if result_file:
                 os.remove(result_file.name)
@@ -164,6 +168,9 @@ class ProgramParser(object):
         # to be able to easily link up statements
 
         section = Section(name, self._source(section_el))
+        comment_el = section_el.find('_comment')
+        if comment_el is not None:
+            section.comment = comment_el.text.rstrip()
 
         self._goto_stmts = []
 
@@ -250,15 +257,22 @@ class ProgramParser(object):
 
 
     def _parse_stmt(self, stmt_el, sentence, next_stmt):
-        stmt_type_el = stmt_el[0]
+        comment_el = stmt_el.find('_comment')
+        if comment_el is not None:
+            stmt_type_el = stmt_el[1]
+        else:
+            stmt_type_el = stmt_el[0]
 
         try:
             parse_func = getattr(self, '_parse_stmt_' + stmt_type_el.tag)
         except AttributeError:
-            return self._unparsed_stmt(stmt_el, sentence, next_stmt)
+            parse_func = self._unparsed_stmt
 
-        return parse_func(stmt_type_el, sentence, next_stmt)
+        stmt = parse_func(stmt_type_el, sentence, next_stmt)
+        if stmt and comment_el is not None:
+            stmt.comment = comment_el.text.rstrip()
 
+        return stmt
 
     def _unparsed_stmt(self, stmt_el, sentence, next_stmt):
         stmt = UnparsedStatement(self._source(stmt_el), sentence)
@@ -378,3 +392,32 @@ class ProgramParser(object):
                       int(element.get('from-column')) - 1,
                       int(element.get('to-column')) - 1)
 
+
+class CommentTreeBuilder(ET.TreeBuilder):
+    """Collect comments and insert them as a <_comment>text...</_comment>
+    tag inside the following section or statement element.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._comments = None
+
+    def comment(self, data):
+        if self._comments is not None:
+            self._comments.append(data)
+
+    def start(self, tag, attrs):
+        super().start(tag, attrs)
+
+        # Start collecting comments now
+        if tag == 'procedureDivision':
+            self._comments = []
+
+        if (tag == 'section' or tag == 'statement'):
+            if self._comments:            
+                super().start('_comment', {})
+                for data in self._comments:
+                    self.data(data)
+                    self.data('\n')
+                super().end('_comment')
+                self._comments = []

@@ -8,7 +8,7 @@ class Outputter(object):
     INDENT_SPACES = 4
 
     def __init__(self):
-        self.link_prefix = ''
+        self.comment_prefix = ''
 
         self._lineno = 0
         self._indent = 0
@@ -32,7 +32,7 @@ class Outputter(object):
         self._indent -= 1
 
     def line(self, text='', source=None, href_para=None, href_section=None,
-             href_other=None, anchor=None):
+             href_other=None, anchor=None, comment=False):
         text = str(text)
 
         if not text:
@@ -45,7 +45,15 @@ class Outputter(object):
 
         self._lineno += 1
         self._output_line(OutputLine(self._lineno, self._indent, text,
-                                     source, href_para, href_section, href_other, anchor))
+                                     source, href_para, href_section, href_other,
+                                     anchor, comment))
+
+    def comment(self, comment):
+        if comment:
+            self.line()
+            for line in comment.split('\n'):
+                self.line('{} {}'.format(self.comment_prefix, line), comment=True)
+            
 
     def _output_line(self, line):
         raise NotImplementedError()
@@ -81,7 +89,7 @@ class TextOutputter(Outputter):
             if w < self.LINK_COLUMN:
                 self._file.write(' ' * (self.LINK_COLUMN - w))
 
-            self._file.write('{}{}'.format(self.link_prefix, ', '.join(refs)))
+            self._file.write('{} {}'.format(self.comment_prefix, ', '.join(refs)))
 
         self._file.write('\n')
 
@@ -141,7 +149,8 @@ def link(link_type, link_id):
 
 
 class OutputLine(object):
-    def __init__(self, number, indent, text, source, href_para, href_section, href_other, anchor):
+    def __init__(self, number, indent, text, source, href_para, href_section,
+                 href_other, anchor, comment):
         self.number = number
         self.indent = indent
         self.text = text
@@ -150,12 +159,16 @@ class OutputLine(object):
         self.href_section = href_section
         self.href_other = href_other
         self.anchor = anchor
+        self.comment = comment
 
 
-def filter_output_line_class(line):
+def filter_code_span_class(line):
     if not line.text:
         return ''
 
+    if line.comment:
+        return 'comment'
+    
     return 'level{}'.format(line.indent % 8)
 
 
@@ -222,7 +235,7 @@ def filter_cobol_line_href(line):
 
 
 template_env = Environment(loader=PackageLoader('CobolSharp', 'templates'))
-template_env.filters['output_line.class'] = filter_output_line_class
+template_env.filters['code_span.class'] = filter_code_span_class
 template_env.filters['output_line.href'] = filter_output_line_href
 template_env.filters['cobol_line.class'] = filter_cobol_line_class
 template_env.filters['cobol_line.level'] = filter_cobol_line_level

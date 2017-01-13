@@ -7,9 +7,10 @@ from .syntax import *
 class PythonishFormatter(object):
     def __init__(self, output):
         self._output = output
-        output.link_prefix = '# '
+        output.comment_prefix = '#'
 
     def format_method(self, method):
+        self._output.comment(method.cobol_section.comment)
         self._output.line('def {}():'.format(method.cobol_section.name),
                           href_section=method.cobol_section,
                           anchor='func.{}'.format(method.cobol_section.name))
@@ -28,6 +29,7 @@ class PythonishFormatter(object):
         for stmt in block.stmts:
             if isinstance(stmt, If):
                 self._output.line()
+                self._output.comment(stmt.cobol_stmt.comment)
                 self._output.line('if {}:'.format(stmt.condition),
                                   source=stmt.condition.source)
 
@@ -67,6 +69,7 @@ class PythonishFormatter(object):
 
             elif isinstance(stmt, While):
                 self._output.line()
+                self._output.comment(stmt.cobol_para.comment)
                 self._output.line('while {}:'.format(stmt.condition),
                                   source=stmt.cobol_branch_stmt.condition.source,
                                   href_para=stmt.cobol_para)
@@ -78,6 +81,7 @@ class PythonishFormatter(object):
 
             elif isinstance(stmt, Forever):
                 self._output.line()
+                self._output.comment(stmt.cobol_para.comment)
                 self._output.line('while True:', href_para=stmt.cobol_para)
                 with self._output.indent():
                     self.format_block(stmt.block)
@@ -90,6 +94,7 @@ class PythonishFormatter(object):
                 self._output.line('continue')
 
             elif isinstance(stmt, CobolStatement):
+                self._output.comment(stmt.comment)
                 self._output.line(stmt.source, source=stmt.source)
 
             else:

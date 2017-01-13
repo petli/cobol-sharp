@@ -11,7 +11,11 @@
        procedure division.
            move 'x' to a.
            initialize b.
+
+      * Comment for paragraph main-do
+      * 
        main-do.
+      * Call sub
            perform sub.
            go to main-exit.
        unused.
@@ -19,6 +23,8 @@
        main-exit.
            exit program.
 
+      * Description of sub section:
+      * This tests a somewhat convoluted if-else structure
        sub section.
        sub-start.
            if a not = 'x'

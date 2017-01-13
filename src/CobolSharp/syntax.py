@@ -48,6 +48,7 @@ class Section(object):
     def __init__(self, name, source):
         self.name = name
         self.source = source
+        self.comment = None
         self.first_para = None
         self.paras = {}
 
@@ -91,6 +92,14 @@ class Paragraph(object):
 
         return None
 
+    @property
+    def comment(self):
+        stmt = self.get_first_stmt()
+        if stmt:
+            return stmt.comment
+        else:
+            return None
+
     def __str__(self):
         return '{:5d}  {}.\n{}'.format(
             self.source.from_line, self.name,
@@ -120,6 +129,7 @@ class CobolStatement(object):
     def __init__(self, source, sentence):
         self.source = source
         self.sentence = sentence
+        self.comment = None
 
     def __str__(self):
         return '{:5d}      {}'.format(self.source.from_line, self.__class__.__name__)

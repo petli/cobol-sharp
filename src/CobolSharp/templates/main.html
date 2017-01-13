@@ -26,11 +26,11 @@
     <div class="source">
       {% for line in output_lines -%}
 
-      <div id="output.{{ line.number }}" class="line {{ line | output_line.class }}">
+      <div id="output.{{ line.number }}" class="line">
         <div class="lineno"><a href="#output.{{ line.number }}">{{ line.number }}</a></div>
         <div class="code" id="{{ line.anchor }}"><a href="#{{ line | output_line.href }}">
             {%- for i in range(line.indent) %}<span class="indent indent{{ i % 8 }}"></span>    {% endfor -%}
-            <span class="level{{ line.indent % 8 }}">{{ line.text |e }}</span></a></div>
+            <span class="{{ line | code_span.class }}">{{ line.text |e }}</span></a></div>
       </div>
 
       {%- endfor %}
