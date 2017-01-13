@@ -65,7 +65,8 @@ def run_koopa(source, output_path, java_binary='java', tabsize=4):
 
         jar = resource_filename('CobolSharp', KOOPA_JAR)
 
-        cmd = (java_binary, '-cp', jar, '-Dkoopa.xml.include_positioning=true',
+        # TODO: add command arg to control heap size
+        cmd = (java_binary, '-cp', jar, '-Xms500m', '-Dkoopa.xml.include_positioning=true',
                'koopa.app.cli.ToXml', source_file.name, output_path)
 
         process = subprocess.Popen(cmd,
@@ -247,6 +248,7 @@ class ProgramParser(object):
     def _parse_stmts(self, stmt_els, sentence, next_stmt):
         stmt_els.reverse()
 
+        stmt = None
         for el in stmt_els:
             stmt = self._parse_stmt(el, sentence, next_stmt)
             if stmt is not None:
