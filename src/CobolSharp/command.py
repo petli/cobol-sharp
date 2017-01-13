@@ -10,6 +10,7 @@ import argparse
 import networkx as nx
 
 OUTPUT_FORMATS = [
+    'xml',
     'full_stmt_graph',
     'stmt_graph',
     'cobol_graph',
@@ -22,10 +23,6 @@ OUTPUT_FORMATS = [
 def main():
     args = parser.parse_args()
     for source_path in args.sources:
-        program = parse(open(source_path, 'rt', encoding=args.encoding, newline=''),
-                        tabsize=args.tabsize,
-                        section=args.section)
-
         if args.destdir:
             output_base = os.path.join(args.destdir, os.path.basename(source_path))
         else:
@@ -33,7 +30,15 @@ def main():
 
         output_base = os.path.splitext(output_base)[0]
 
-        process_program(args, output_base, program)
+        source_file = open(source_path, 'rt', encoding=args.encoding, newline='')
+
+        if args.format == 'xml':
+            xml_path = '{}.xml'.format(output_base)
+            run_koopa(source_file, xml_path, tabsize=args.tabsize)
+            print('wrote', xml_path)
+        else:
+            program = parse(source_file, tabsize=args.tabsize, section=args.section)
+            process_program(args, output_base, program)
 
 
 def process_program(args, output_base, program):

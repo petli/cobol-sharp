@@ -16,6 +16,8 @@ import xml.etree.ElementTree as ET
 
 from .syntax import *
 
+KOOPA_JAR = 'data/koopa-r356.jar'
+
 class ParserError(Exception): pass
 
 def parse(source, java_binary='java', tabsize=4, section=None):
@@ -24,77 +26,91 @@ def parse(source, java_binary='java', tabsize=4, section=None):
 
     Returns a Program object.
     """
+    return ProgramParser(source, java_binary, tabsize, section).program
+
+
+def run_koopa(source, output_path, java_binary='java', tabsize=4):
+    """Run Koopa to parse 'source', either a text file-like object with a
+    read() method or a string, into an XML document saved to
+    output_path.
+
+    Returns the Cobol source code as a string, with expanded tabs.
+    """
 
     if hasattr(source, 'read'):
         code = source.read()
+        code_path = source.name
     elif isinstance(source, str):
         code = source
+        code_path = '<string>'
     else:
         raise TypeError('source must be a file-like object or a string')
 
-    return ProgramParser(code.expandtabs(tabsize), java_binary, section).program
+    source_file = None
+    try:
+        # Regardless of source encoding, save as a single-byte encoding since Cobol parsing
+        # should only need ascii chars.  Saving as UTF-8 or similar means that the character
+        # ranges reported by koopa will be offset from the data in self._code, breaking extracting
+        # symbols etc.
+
+        # Since NamedTemporaryFile doesn't support specifying encoding error handling,
+        # encode the bytes ourselves to replace non-ascii with ? to preserve char counts.
+
+        source_file = NamedTemporaryFile(mode='wb', suffix='.cbl', delete=False)
+        source_file.write(code.encode('ascii', errors='replace'))
+        source_file.close()
+
+        jar = resource_filename('CobolSharp', KOOPA_JAR)
+
+        cmd = (java_binary, '-cp', jar, '-Dkoopa.xml.include_positioning=true',
+               'koopa.app.cli.ToXml', source_file.name, output_path)
+
+        process = subprocess.Popen(cmd,
+                                   stdin=subprocess.DEVNULL,
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT,
+                                   universal_newlines=True)
+
+        stdout, stderr = process.communicate()
+
+        # Doesn't seem to return an error exit code on parse errors...
+        if process.returncode != 0 or 'Error:' in stdout:
+            msg = stdout.replace(source_file.name, code_path)
+            msg = msg.replace(os.path.basename(source_file.name), code_path)
+            raise ParserError(msg)
+
+        return code
+    
+    finally:
+        if source_file:
+            os.remove(source_file.name)
 
 
 class ProgramParser(object):
-    KOOPA_JAR = 'data/koopa-r356.jar'
-
-    def __init__(self, code, java_binary, section):
-        self._code = code
-
+    def __init__(self, source, java_binary, tabsize, section):
         self._perform_stmts = []
 
-        self._run_koopa(java_binary)
-        self._parse(section)
+        if hasattr(source, 'name'):
+            self._source_path = source.name
+        else:
+            self._source_path = '<string>'
 
-    def _warn(self, element, msg):
-        sys.stderr.write('line {}: {}\n'.format(element.get('from-line'), msg))
-
-    def _run_koopa(self, java_binary):
-        source_file = None
-        result_file = None
+        # Just grab a temp file name for the results
+        result_file = NamedTemporaryFile(mode='wb', suffix='.xml', delete=False)
+        result_file.close()
 
         try:
-            # Regardless of source encoding, save as a single-byte encoding since Cobol parsing
-            # should only need ascii chars.  Saving as UTF-8 or similar means that the character
-            # ranges reported by koopa will be offset from the data in self._code, breaking extracting
-            # symbols etc.
-
-            # Since NamedTemporaryFile doesn't support specifying encoding error handling,
-            # encode the bytes ourselves to replace non-ascii with ? to preserve char counts.
-            
-            source_file = NamedTemporaryFile(mode='wb', suffix='.cbl', delete=False)
-            source_file.write(self._code.encode('ascii', errors='replace'))
-            source_file.close()
-
-            # Just grab a temp file name for the results
-            result_file = NamedTemporaryFile(mode='wb', suffix='.xml', delete=False)
-            result_file.close()
-
-            jar = resource_filename('CobolSharp', self.KOOPA_JAR)
-
-            cmd = (java_binary, '-cp', jar, '-Dkoopa.xml.include_positioning=true',
-                   'koopa.app.cli.ToXml', source_file.name, result_file.name)
-
-            process = subprocess.Popen(cmd,
-                                       stdin=subprocess.DEVNULL,
-                                       stdout=subprocess.PIPE,
-                                       stderr=subprocess.STDOUT,
-                                       universal_newlines=True)
-
-            stdout, stderr = process.communicate()
-
-            # Doesn't seem to return an error exit code on parse errors...
-            if process.returncode != 0 or 'Error:' in stdout:
-                raise ParserError(stdout)
-
+            self._code = run_koopa(source, result_file.name, java_binary=java_binary, tabsize=tabsize)
             self._tree = ET.parse(result_file.name)
-
         finally:
-            pass
-            if source_file:
-                os.remove(source_file.name)
             if result_file:
                 os.remove(result_file.name)
+
+        self._parse(section)
+
+
+    def _warn(self, element, msg):
+        sys.stderr.write('{}: line {}: {}\n'.format(self._source_path, element.get('from-line'), msg))
 
 
     def _parse(self, section_name):
