@@ -6,6 +6,7 @@ class NodeBase(object):
 
     def __init__(self):
         self.scope = None
+        self.source = None
 
     def _scope_id(self):
         if self.scope:
@@ -122,6 +123,7 @@ class GotoNode(JumpNodeBase):
     def __init__(self, node):
         super(GotoNode, self).__init__()
         self.node = node
+        self.source = node.source
 
     def __str__(self):
         return 'GotoNode -> {} [{}]'.format(self.node, self._scope_id())

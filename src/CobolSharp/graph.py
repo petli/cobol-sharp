@@ -494,11 +494,24 @@ class ScopeStructuredGraph(StructureGraphBase):
             # No loop exits
             return
 
-        # TOOD: prioritise non-jumps here, and choose the nearest one in case of
-        # ties. Probably needs some weighting.
-        exits = sorted(exit_edges.items(), key=lambda kv: len(kv[1]), reverse=True)[0]
-        exit_node = exits[0]
-        edges = exits[1]
+        def exit_weight(kv):
+            dest = kv[0]
+            edges = kv[1]
+
+            # Use mot popular destination
+            weight = len(edges)
+
+            # Prioritise non-jumps
+            if not isinstance(dest, JumpNodeBase):
+                weight *= 10
+
+            # Break ties by jumping the shortest distance possible
+            weight += 1.0 / abs(dest.source.from_char - loop.source.from_char)
+            return weight
+
+        exits = sorted(exit_edges.items(), key=exit_weight, reverse=True)
+        exit_node = exits[0][0]
+        edges = exits[0][1]
 
         loop_exit = LoopExit(loop)
         loop_exit.scope = exit_node.scope
@@ -509,6 +522,10 @@ class ScopeStructuredGraph(StructureGraphBase):
         for src, dest, key, data in edges:
             self.graph.remove_edge(src, dest, key)
             self.graph.add_edge(src, loop_exit, key, data)
+
+        if self._debug:
+            loop.stmt.comment = 'cobolsharp: loop exit candidates:\n{}'.format(
+                '\n'.join(['   {}'.format(x[0]) for x in exits]))
 
 
     def _continue_to_goto(self, continue_node):
