@@ -52,7 +52,7 @@ def cobol_scope_graph(cobol_dag):
     """Return an ScopeStructuredGraph of the Cobol code in the
     doc string of the unit test function.
     """
-    return ScopeStructuredGraph.from_acyclic_graph(cobol_dag)
+    return ScopeStructuredGraph.from_acyclic_graph(cobol_dag, debug=True)
 
 
 @pytest.fixture(scope='function')

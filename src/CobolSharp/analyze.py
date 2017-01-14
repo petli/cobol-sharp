@@ -79,14 +79,11 @@ class RootReductionScope(ReductionScopeBase):
     """The root redux scope for a section.
     """
 
-    # Constant controlling when the code decides that flipping
-    # if-else branches is worth it to remove an else branch
-    invert_if_penalty = 2
+    def __init__(self, graph, keep_all_cobol_stmts=False, debug=False):
 
-
-    def __init__(self, graph, keep_all_cobol_stmts=False):
         super(RootReductionScope, self).__init__(graph, None)
         self._keep_all_cobol_stmts = keep_all_cobol_stmts
+        self._debug = debug
 
         # Create labels for all known goto targets, since this
         # is used while reducing blocks to insert labels at the
@@ -104,6 +101,10 @@ class RootReductionScope(ReductionScopeBase):
     @property
     def keep_all_cobol_stmts(self):
         return self._keep_all_cobol_stmts
+
+    @property
+    def debug(self):
+        return self._debug
 
     @property
     def node_labels(self):
@@ -261,9 +262,13 @@ class BlockReduction(ReductionBase):
         return s
 
 
-    def resolve_dest_node(self, node):
+    def resolve_dest_node(self, node, is_else_branch=False):
         if self._unresolved_if_redux:
-            self._unresolved_if_redux.resolve_branches(node)
+            # Cannot form an else-if if there are other statements
+            if self.block.stmts:
+                is_else_branch = False
+
+            self._unresolved_if_redux.resolve_branches(node, is_else_branch=is_else_branch)
             self._block.stmts.extend(self._unresolved_if_redux.block.stmts)
             self._dest_node = self._unresolved_if_redux.dest_node
             self._sub_block_size += self._unresolved_if_redux.size
@@ -366,7 +371,7 @@ class BlockReduction(ReductionBase):
         self.block.stmts.extend(if_redux.block.stmts)
         self._sub_block_size += if_redux.size
 
-        assert if_redux.dest_node is target_node
+        assert if_redux.dest_node is target_node or if_redux.dest_node is None
         return target_node
 
 
@@ -467,6 +472,7 @@ class IfReduction(ReductionBase):
         self._branch_dests.update(self._then.branch_dests)
         self._branch_dests.update(self._else.branch_dests)
 
+
     @property
     def size(self):
         # Don't return length of block, since that would
@@ -475,28 +481,35 @@ class IfReduction(ReductionBase):
         return 1 + self._then.size + self._else.size
 
 
-    def resolve_branches(self, target_node):
+    def resolve_branches(self, target_node, is_else_branch=False):
         assert self._dest_node is None
 
         self._then.resolve_dest_node(target_node)
-        self._else.resolve_dest_node(target_node)
+        self._else.resolve_dest_node(target_node, is_else_branch=True)
 
         assert self._then.dest_node is None or self._then.dest_node is target_node
         assert self._else.dest_node is None or self._else.dest_node is target_node
 
-        # Flip empty then branches to avoid an unnecessary else
-        if not self._then.block.stmts and self._else.block.stmts:
+        # Determine the least costly reduction of the if statement
+        strategies = [s for s in (s(self._then, self._else, is_else_branch)
+                                  for s in if_reduction_strategies)
+                      if s.possible]
+        strategies.sort(key=lambda s: s.cost)
+
+        if self._scope.root.debug:
+            self._branch_node.stmt.comment = 'cobolsharp: if reduction strategies:\n{}'.format(
+                '\n'.join(['   {}'.format(r) for r in strategies]))
+
+        if strategies:
+            s = strategies[0]
+        else:
+            s = NullIfStrategy(self._then, self._else, is_else_branch)
+
+        s.apply()
+        if s.flip:
             self._flip_branches()
 
-        # Also flip if else branch jumps and swapping them around is
-        # worthwhile by reducing the number of indented lines
-        elif (self._else.dest_node is None
-              and self._then.dest_node is target_node
-              and self._else.size * self._scope.root.invert_if_penalty < self._then.size):
-            self._flip_branches()
-
-        # Remove else branch if then branch jumps
-        if self._then.dest_node is None and self._else.dest_node is target_node:
+        if s.remove_else:
             self._dest_node = self._else.dest_node
             tail_stmts = self._else.block.stmts
             self._else._block = Block()
@@ -514,6 +527,195 @@ class IfReduction(ReductionBase):
     def _flip_branches(self):
         self._then, self._else = self._else, self._then
         self._condition = self._condition.invert()
+
+
+
+class IfReductionStrategyBase(object):
+    # Fixed cost of inverting an if condition
+    invert_condition_cost = 5
+
+    # Cost of losing an if-else
+    losing_if_else_cost = 20
+
+    # Cost of keeping an else branch when then ends with a jump
+    unnecessary_then_jump_cost = 5
+
+
+    def __init__(self, then_redux, else_redux, is_else_branch):
+        self._then = then_redux
+        self._else = else_redux
+        self._is_else_branch = is_else_branch
+
+    def __repr__(self):
+        return '<{} cost {}>'.format(self.__class__.__name__, self.cost)
+
+    def _jump_cost(self, dest_node):
+        if dest_node is Exit:
+            return 10
+
+        elif isinstance(dest_node, LoopExit):
+            return 10
+
+        elif isinstance(dest_node, ContinueLoop):
+            return 20
+
+        else:
+            return 50
+
+    @property
+    def possible(self):
+        """Boolean indicating if the reduction is possible."""
+        return True
+
+    @property
+    def cost(self):
+        """The cost of this reduction.
+        """
+        raise NotImplementedError()
+
+    @property
+    def flip(self):
+        """True if the branches should be flipped.
+        """
+        return False
+
+    @property
+    def remove_else(self):
+        return False
+
+    def apply(self):
+        """Apply the strategy to the then/else reduxes.
+        """
+        pass
+
+
+class NullIfStrategy(IfReductionStrategyBase):
+    """Do no changes to the if statement.
+    """
+
+    @property
+    def possible(self):
+        if not self._then.block.stmts:
+            # Not acceptable to have an empty then branch
+            return False
+
+        return True
+
+    @property
+    def cost(self):
+        if len(self._else.block.stmts) == 1 and isinstance(self._else.block.stmts[0], If):
+            # Will be an else-if, so no cost of indenting the else
+            cost = self._then.size
+        else:
+            cost = self._then.size + self._else.size
+
+        if self._then.dest_node is None:
+            cost += self.unnecessary_then_jump_cost
+
+        return cost
+
+
+class RemoveElseIfStrategy(IfReductionStrategyBase):
+    """Remove the else branch if the then branch terminates.
+    """
+
+    @property
+    def possible(self):
+        return self._then.dest_node is None
+
+    @property
+    def cost(self):
+        cost = self._then.size
+        if self._is_else_branch:
+            cost += self.losing_if_else_cost
+        return cost
+
+    @property
+    def remove_else(self):
+        return True
+
+
+class FlipToRemoveElseStrategy(IfReductionStrategyBase):
+    @property
+    def possible(self):
+        if self._else.dest_node is None:
+            # Can remove then branch after flip
+            return True
+
+        if not self._then.block.stmts:
+            # There won't be any else branch
+            return True
+
+        return False
+
+    @property
+    def cost(self):
+        cost = self._else.size + self.invert_condition_cost
+        if self._is_else_branch:
+            cost += self.losing_if_else_cost
+        return cost
+
+    @property
+    def flip(self):
+        return True
+
+    @property
+    def remove_else(self):
+        return True
+
+class JumpFromThenStrategy(IfReductionStrategyBase):
+    @property
+    def possible(self):
+        return self._then.dest_node is not None
+
+    @property
+    def cost(self):
+        cost = self._then.size + self._jump_cost(self._then.dest_node)
+        if self._is_else_branch:
+            cost += self.losing_if_else_cost
+        return cost
+
+    @property
+    def remove_else(self):
+        return True
+
+    def apply(self):
+        # Re-resolve forcing in a jump
+        self._then.resolve_dest_node(None)
+
+
+class JumpFromFlippedElseStrategy(IfReductionStrategyBase):
+    @property
+    def possible(self):
+        return self._else.dest_node is not None
+
+    @property
+    def cost(self):
+        cost = self._else.size + self._jump_cost(self._else.dest_node)
+        cost += self.invert_condition_cost
+        if self._is_else_branch:
+            cost += self.losing_if_else_cost
+        return cost
+
+    def apply(self):
+        # Re-resolve forcing in a jump
+        self._else.resolve_dest_node(None)
+
+    @property
+    def flip(self):
+        return True
+
+    @property
+    def remove_else(self):
+        return True
+
+
+if_reduction_strategies = [
+    NullIfStrategy,
+    RemoveElseIfStrategy,
+    FlipToRemoveElseStrategy,
+    JumpFromThenStrategy,
+    JumpFromFlippedElseStrategy]
 
 
 class NodeLabelDict(dict):

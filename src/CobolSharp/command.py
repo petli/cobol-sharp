@@ -87,7 +87,7 @@ def process_program(args, output_base, program):
             print('wrote', graph_path)
             continue
 
-        scope_graph = ScopeStructuredGraph.from_acyclic_graph(dag)
+        scope_graph = ScopeStructuredGraph.from_acyclic_graph(dag, debug=args.debug)
 
         if args.format == 'scope_graph':
             scope_graph.write_dot(graph_path)
@@ -117,4 +117,6 @@ parser.add_argument('-e', '--encoding', default='iso-8859-1',
                     help='source file encoding (default iso-8859-1)')
 parser.add_argument('-d', '--destdir',
                     help='write files to this directory instead of the source code dir')
+parser.add_argument('-D', '--debug', action='store_true',
+                    help='debug mode aiding in inspecting the analysis results')
 

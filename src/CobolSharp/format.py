@@ -38,6 +38,7 @@ class PythonishFormatter(object):
 
                 while len(stmt.else_block.stmts) == 1 and isinstance(stmt.else_block.stmts[0], If):
                     stmt = stmt.else_block.stmts[0]
+                    self._output.comment(stmt.cobol_stmt.comment)
                     self._output.line('elif {}:'.format(stmt.condition),
                                       source=stmt.condition.source)
                     with self._output.indent():

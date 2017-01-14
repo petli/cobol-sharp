@@ -83,8 +83,9 @@ class StmtGraph(object):
 
 
 class StructureGraphBase(object):
-    def __init__(self):
+    def __init__(self, debug=False):
         self.graph = nx.MultiDiGraph()
+        self._debug = debug
 
     def print_nodes(self):
         nodes = self.graph.nodes()
@@ -257,8 +258,8 @@ class AcyclicStructureGraph(StructureGraphBase):
     be replaced by a statement that wraps the loop statements.
     """
 
-    def __init__(self):
-        super(AcyclicStructureGraph, self).__init__()
+    def __init__(self, *args, **kwargs):
+        super(AcyclicStructureGraph, self).__init__(*args, **kwargs)
         self._loops = []
 
 
@@ -371,8 +372,8 @@ class ScopeStructuredGraph(StructureGraphBase):
       nodes in the source scope.
     """
 
-    def __init__(self):
-        super(ScopeStructuredGraph, self).__init__()
+    def __init__(self, *args, **kwargs):
+        super(ScopeStructuredGraph, self).__init__(*args, **kwargs)
 
         # Map (scope, dest) node -> GotoNode objects
         self._goto_nodes = {}
@@ -382,14 +383,14 @@ class ScopeStructuredGraph(StructureGraphBase):
         """Translate the graph structure to a Block of CobolStatement or
         structure elements and return it.
         """
-        scope = RootReductionScope(self.graph, keep_all_cobol_stmts)
+        scope = RootReductionScope(self.graph, keep_all_cobol_stmts, debug=self._debug)
         block = scope.reduce()
         return block
 
 
     @classmethod
-    def from_acyclic_graph(cls, acyclic_graph):
-        scope_graph = cls()
+    def from_acyclic_graph(cls, acyclic_graph, debug=False):
+        scope_graph = cls(debug=debug)
 
         # Copy by way of edges, to avoid getting copies of the node objects
         scope_graph.graph.add_edges_from(acyclic_graph.graph.edges(keys=True, data=True))
@@ -493,6 +494,8 @@ class ScopeStructuredGraph(StructureGraphBase):
             # No loop exits
             return
 
+        # TOOD: prioritise non-jumps here, and choose the nearest one in case of
+        # ties. Probably needs some weighting.
         exits = sorted(exit_edges.items(), key=lambda kv: len(kv[1]), reverse=True)[0]
         exit_node = exits[0]
         edges = exits[1]

@@ -189,8 +189,12 @@ def test_remove_long_then_block_when_else_returns(cobol_block):
            if b > 0
                if b > 1
                    perform b-plus
-                   perform something
-                   perform something-more
+                   perform c
+                   perform d
+                   perform e
+                   perform f
+                   perform g
+                   perform h
                    go to inner-true
                else
                    go to finish
@@ -214,8 +218,12 @@ def test_remove_long_then_block_when_else_returns(cobol_block):
                             ExpectedBlock(Return()),
                             ExpectedBlock()),
                          PerformSectionStatement(None, None, 'b-plus'),
-                         PerformSectionStatement(None, None, 'something'),
-                         PerformSectionStatement(None, None, 'something-more')),
+                         PerformSectionStatement(None, None, 'c'),
+                         PerformSectionStatement(None, None, 'd'),
+                         PerformSectionStatement(None, None, 'e'),
+                         PerformSectionStatement(None, None, 'f'),
+                         PerformSectionStatement(None, None, 'g'),
+                         PerformSectionStatement(None, None, 'h')),
 
            ExpectedBlock(If(None, ConditionExpression(None, False),
                             ExpectedBlock(PerformSectionStatement(None, None, 'b-minus')),
