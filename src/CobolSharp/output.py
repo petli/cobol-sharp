@@ -32,7 +32,7 @@ class Outputter(object):
         self._indent -= 1
 
     def line(self, text='', source=None, href_para=None, href_section=None,
-             href_other=None, anchor=None, comment=False):
+             href_output=None, anchor=None, comment=False):
         text = str(text)
 
         if not text:
@@ -45,7 +45,7 @@ class Outputter(object):
 
         self._lineno += 1
         self._output_line(OutputLine(self._lineno, self._indent, text,
-                                     source, href_para, href_section, href_other,
+                                     source, href_para, href_section, href_output,
                                      anchor, comment))
 
     def comment(self, comment):
@@ -150,14 +150,14 @@ def link(link_type, link_id):
 
 class OutputLine(object):
     def __init__(self, number, indent, text, source, href_para, href_section,
-                 href_other, anchor, comment):
+                 href_output, anchor, comment):
         self.number = number
         self.indent = indent
         self.text = text
         self.source = source
         self.href_para = href_para
         self.href_section = href_section
-        self.href_other = href_other
+        self.href_output = href_output
         self.anchor = anchor
         self.comment = comment
 

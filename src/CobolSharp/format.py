@@ -60,7 +60,7 @@ class PythonishFormatter(object):
 
             elif isinstance(stmt, Goto):
                 self._output.line('goto {}'.format(stmt.label.name),
-                                  href_other='label.{}'.format(stmt.label.name),
+                                  href_output='label.{}'.format(stmt.label.name),
                                   href_para=stmt.label.cobol_para)
                 self._output.line()
 
@@ -93,6 +93,11 @@ class PythonishFormatter(object):
 
             elif isinstance(stmt, Continue):
                 self._output.line('continue')
+
+            elif isinstance(stmt, PerformSectionStatement):
+                self._output.comment(stmt.comment)
+                self._output.line(stmt.source, source=stmt.source,
+                                  href_output='func.{}'.format(stmt.section_name))
 
             elif isinstance(stmt, CobolStatement):
                 self._output.comment(stmt.comment)

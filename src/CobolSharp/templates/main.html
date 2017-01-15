@@ -6,6 +6,10 @@
   <style type="text/css">
     {% include "source.css" %}
   </style>
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/octicons/4.4.0/font/octicons.min.css"
+        integrity="sha256-pNGG0948CVwfHxxS8lVkUKftaSsMBzFSUknrKr2utfY="
+        crossorigin="anonymous" />
 </head>
 <body>
 
@@ -27,6 +31,9 @@
       {% for line in output_lines -%}
 
       <div id="output.{{ line.number }}" class="line">
+        {%- if line.href_output -%}
+          <a class="link-def" href="#{{line.href_output}}" aria-label="Go to definition"><span class="octicon octicon-tag" aria-hidden=true></span></a>
+        {%- endif -%}
         <div class="lineno"><a href="#output.{{ line.number }}">{{ line.number }}</a></div>
         <div class="code" id="{{ line.anchor }}"><a href="#{{ line | output_line.href }}">
             {%- for i in range(line.indent) %}<span class="indent indent{{ i % 8 }}"></span>    {% endfor -%}

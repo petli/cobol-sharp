@@ -38,18 +38,29 @@ div.source div.line {
     font-family: monospace;
     white-space: nowrap;
     margin-top: 1px;
+    position: relative;
 }
 
 div.lineno {
     display: inline-block;
     text-align: right;
-    min-width: 5ex;
+    min-width: 6ex;
 }
 
 div.code {
     display: inline-block;
     text-align: left;
     white-space: pre;
+}
+
+div#output div.code {
+    margin-left: 20px;
+}
+
+a.link-def {
+    position: absolute;
+    left: 6ex;
+    padding-left: 4px;
 }
 
 div.code a {
