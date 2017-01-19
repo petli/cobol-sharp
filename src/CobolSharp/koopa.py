@@ -20,13 +20,13 @@ KOOPA_JAR = 'data/koopa-r356.jar'
 
 class ParserError(Exception): pass
 
-def parse(source, java_binary='java', tabsize=4, section=None):
+def parse(source, java_binary='java', tabsize=4):
     """Parse Cobol code in 'source', which must be a text file-like object
     with a read() method or a string.
 
     Returns a Program object.
     """
-    return ProgramParser(source, java_binary, tabsize, section).program
+    return ProgramParser(source, java_binary, tabsize).program
 
 
 def run_koopa(source, output_path, java_binary='java', tabsize=4):
@@ -91,7 +91,7 @@ def run_koopa(source, output_path, java_binary='java', tabsize=4):
 
 
 class ProgramParser(object):
-    def __init__(self, source, java_binary, tabsize, section):
+    def __init__(self, source, java_binary, tabsize):
         self._perform_stmts = []
 
         if hasattr(source, 'name'):
@@ -111,20 +111,25 @@ class ProgramParser(object):
             if result_file:
                 os.remove(result_file.name)
 
-        self._parse(section)
+        self._parse()
 
 
-    def _warn(self, element, msg):
-        sys.stderr.write('{}: line {}: {}\n'.format(self._source_path, element.get('from-line'), msg))
+    def _warn(self, element_or_source, msg):
+        if isinstance(element_or_source, Source):
+            line = element_or_source.from_line
+        else:
+            line = element_or_source.get('from-line')
+
+        sys.stderr.write('{}: line {}: {}\n'.format(self._source_path, line, msg))
 
 
-    def _parse(self, section_name):
+    def _parse(self):
         unit_el = self._tree.find('compilationGroup')
         proc_div_el = unit_el.find('.//procedureDivision')
 
         proc_div = ProcedureDivision(self._source(proc_div_el))
 
-        self.program = Program(self._source(unit_el), proc_div)
+        self.program = Program(self._source(unit_el), self._source_path, proc_div)
 
         section_els = proc_div_el.findall('section')
 
@@ -140,33 +145,39 @@ class ProgramParser(object):
         if main_para_els:
             section_els.insert(0, self._virtual_element('tag', main_para_els))
 
-        if section_name:
-            section_name = section_name.lower()
-            
         section = None
         for el in section_els:
-            name = self._section_name(el)
-            if not section_name or name == section_name:
-                section = self._parse_section(el, name)
-                proc_div.sections[section.name] = section
+            section = self._parse_section(el)
+            if section.name in proc_div.sections:
+                self._warn(el, 'duplicate section: {}'.format(section.name))
+                section.name += '__dup{}'.format(id(section))
 
-        if section is None:
-            self._warn(proc_div_el, 'section not found: {}'.format(section_name))
-            
-        proc_div.first_section = section
+            proc_div.sections[section.name] = section
 
-
-    def _section_name(self, section_el):
-        name_el = section_el.find('./sectionName/name/cobolWord/t')
-        if name_el is not None:
-            return name_el.text.lower()
-        else:
-            return '__main'
+            if proc_div.first_section is None:
+                proc_div.first_section = section
 
 
-    def _parse_section(self, section_el, name):
+        # Resolve section references
+        for stmt in self._perform_stmts:
+            ref_section = proc_div.sections.get(stmt.section_name)
+            if ref_section:
+                stmt.section = ref_section
+                stmt.sentence.para.section.used_sections.add(ref_section)
+                ref_section.xref_stmts.append(stmt)
+            else:
+                self._warn(stmt.source, 'reference to undefined section: {}'.format(stmt.section_name))
+
+
+    def _parse_section(self, section_el):
         # Process the paragraphs, sentences and statements backward
         # to be able to easily link up statements
+
+        name_el = section_el.find('./sectionName/name/cobolWord/t')
+        if name_el is not None:
+            name = name_el.text.lower()
+        else:
+            name = '__main'
 
         section = Section(name, self._source(section_el))
         comment_el = section_el.find('_comment')

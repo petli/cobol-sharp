@@ -32,7 +32,7 @@ class Outputter(object):
         self._indent -= 1
 
     def line(self, text='', source=None, href_para=None, href_section=None,
-             href_output=None, anchor=None, comment=False):
+             href_output=None, anchor=None, comment=False, xref_stmts=None):
         text = str(text)
 
         if not text:
@@ -46,7 +46,7 @@ class Outputter(object):
         self._lineno += 1
         self._output_line(OutputLine(self._lineno, self._indent, text,
                                      source, href_para, href_section, href_output,
-                                     anchor, comment))
+                                     anchor, comment, xref_stmts))
 
     def comment(self, comment):
         if comment:
@@ -70,7 +70,17 @@ class TextOutputter(Outputter):
         self._file = output_file
 
     def _output_line(self, line):
-        self._file.write(' ' * self.INDENT_SPACES * line.indent)
+        indent = ' ' * self.INDENT_SPACES * line.indent
+
+        if line.xref_stmts:
+            self._file.write('{}{} Referneces\n'.format(indent, self.comment_prefix))
+            for stmt in line.xref_stmts:
+                self._file.write('{}{} {:6d}: {}\n'.format(
+                    indent, self.comment_prefix,
+                    stmt.source.from_line,
+                    stmt.sentence.para.section.name))
+
+        self._file.write(indent)
         self._file.write(line.text)
 
         refs = []
@@ -112,8 +122,11 @@ class HtmlOutputter(Outputter):
 
     def close(self):
         template = template_env.get_template('main.html')
-        template.stream(cobol_lines=self._cobol_lines,
-                        output_lines=self._output_lines).dump(self._file)
+        template.stream(
+            cobol_lines=self._cobol_lines,
+            output_lines=self._output_lines,
+            comment_prefix=self.comment_prefix,
+        ).dump(self._file)
 
         self._cobol_lines = None
         self._output_lines = None
@@ -150,7 +163,7 @@ def link(link_type, link_id):
 
 class OutputLine(object):
     def __init__(self, number, indent, text, source, href_para, href_section,
-                 href_output, anchor, comment):
+                 href_output, anchor, comment, xref_stmts):
         self.number = number
         self.indent = indent
         self.text = text
@@ -160,6 +173,7 @@ class OutputLine(object):
         self.href_output = href_output
         self.anchor = anchor
         self.comment = comment
+        self.xref_stmts = xref_stmts
 
 
 def filter_code_span_class(line):

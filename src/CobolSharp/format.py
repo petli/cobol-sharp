@@ -13,7 +13,8 @@ class PythonishFormatter(object):
         self._output.comment(method.cobol_section.comment)
         self._output.line('def {}():'.format(method.cobol_section.name),
                           href_section=method.cobol_section,
-                          anchor='func.{}'.format(method.cobol_section.name))
+                          anchor='func.{}'.format(method.cobol_section.name),
+                          xref_stmts=method.cobol_section.xref_stmts)
 
         with self._output.indent():
             self.format_block(method.block)

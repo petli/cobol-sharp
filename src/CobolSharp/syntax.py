@@ -19,10 +19,10 @@ class Source(object):
     def __repr__(self):
         return '<Source char {0.from_char}-{0.to_char}, line {0.from_line}-{0.to_line}, column {0.from_column}-{0.to_column}>'.format(self)
 
-
 class Program(object):
-    def __init__(self, source, proc_div):
+    def __init__(self, source, path, proc_div):
         self.source = source
+        self.path = path
         self.proc_div = proc_div
 
     def __str__(self):
@@ -36,9 +36,7 @@ class ProcedureDivision(object):
         self.sections = {}
 
     def sections_in_order(self):
-        sections = list(self.sections.values())
-        sections.sort(key = lambda s: s.source.from_char)
-        return sections
+        return sorted(self.sections.values(), key=lambda s: s.source.from_char)
 
     def __str__(self):
         return '\n\n'.join([str(s) for s in self.sections_in_order()])
@@ -51,6 +49,8 @@ class Section(object):
         self.comment = None
         self.first_para = None
         self.paras = {}
+        self.xref_stmts = []
+        self.used_sections = set()
 
     def get_first_stmt(self):
         if self.first_para:
@@ -136,6 +136,15 @@ class CobolStatement(object):
 
     def __repr__(self):
         return '<{} {}>'.format(self.__class__.__name__, repr(self.source))
+
+    def __lt__(self, other):
+        # Support sorting statements by their source code order
+        if other.source is None:
+            return False
+        elif self.source is None:
+            return True
+        else:
+            return self.source.from_char < other.source.from_char
 
 
 class ConditionExpression(object):

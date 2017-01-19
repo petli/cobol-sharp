@@ -50,3 +50,11 @@
            move 3 to b.
        unused-exit.
            exit.
+
+
+      * Duplicate section with duplicate paragraphs
+       unused section.
+       foo.
+           move 1 to a.
+       foo.
+           exit.
