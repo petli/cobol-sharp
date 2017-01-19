@@ -28,33 +28,49 @@
 
   <div id="output">
     <div class="source">
-      {% for line in output_lines -%}
-      {%- if line.xref_stmts %}
+      {% for item in items -%}
+      {%- if isinstance(item, StartBlock) %}
+      <div class="block unfolded-block">
+      {% if item.size > 5 -%}
+      {%- set first_line_in_block = True -%}
+      {%- endif -%}
+      {%- elif isinstance(item, OutputLine) %}
+      {%- if item.xref_stmts %}
       <div class="line">
         <div class="lineno"></div>
         <div class="code">
-          {%- for i in range(line.indent) %}<span class="indent indent{{ i % 8 }}"></span>    {% endfor -%}
+          {%- for i in range(item.indent) %}<span class="indent indent{{ i % 8 }}"></span>    {% endfor -%}
             <span class="comment">{{ comment_prefix }} References:</span></div>
       </div>
-      {% for stmt in line.xref_stmts|sort -%}
+      {% for stmt in item.xref_stmts|sort -%}
       <div class="line">
         <div class="lineno"></div>
         <div class="code"><a href="#cobol.{{ stmt.source.from_line }}">
-            {%- for i in range(line.indent) %}<span class="indent indent{{ i % 8 }}"></span>    {% endfor -%}
+            {%- for i in range(item.indent) %}<span class="indent indent{{ i % 8 }}"></span>    {% endfor -%}
             <span class="comment">{{ comment_prefix }} {{ '{:6d}'.format(stmt.source.from_line) }}: {{ stmt.sentence.para.section.name |e }}</span></a></div>
       </div>
       {% endfor -%}
       {%- endif -%}
-      <div id="output.{{ line.number }}" class="line">
-        {%- if line.href_output -%}
-          <a class="link-def" href="#{{line.href_output}}" aria-label="Go to definition"><span class="octicon octicon-tag" aria-hidden=true></span></a>
+      <div id="output.{{ item.number }}" class="line {{ 'first-line-block' if first_line_in_block }}">
+        {%- if first_line_in_block -%}
+          <button type="button" class="fold-button fold-top" aria-label="Fold block"><span class="octicon octicon-fold" aria-hidden="true"></span></button>
+          <button type="button" class="fold-button unfold-top" aria-label="Unfold block"><span class="octicon octicon-unfold" aria-hidden="true"></span></button>
+        {%- set first_line_in_block = False -%}
+        {% endif %}
+        {%- if item.href_output -%}
+          <a class="link-def" href="#{{item.href_output}}" aria-label="Go to definition"><span class="octicon octicon-tag" aria-hidden="true"></span></a>
         {%- endif -%}
-        <div class="lineno"><a href="#output.{{ line.number }}">{{ line.number }}</a></div>
-        <div class="code" id="{{ line.anchor }}"><a href="#{{ line | output_line.href }}">
-            {%- for i in range(line.indent) %}<span class="indent indent{{ i % 8 }}"></span>    {% endfor -%}
-            <span class="{{ line | code_span.class }}">{{ line.text |e }}</span></a></div>
+        <div class="lineno"><a href="#output.{{ item.number }}">{{ item.number }}</a></div>
+        <div class="code" id="{{ item.anchor }}"><a href="#{{ item | output_line.href }}">
+            {%- for i in range(item.indent) %}<span class="indent indent{{ i % 8 }}"></span>    {% endfor -%}
+            <span class="{{ item | code_span.class }}">{{ item.text |e }}</span></a></div>
       </div>
-
+      {%- elif isinstance(item, EndBlock) %}
+      {% if item.size > 5 -%}
+        <!-- button type="button" class="fold-button fold-bottom" aria-label="Fold block"><span class="octicon octicon-fold" aria-hidden="true"></span></button -->
+      {%- endif %}
+      </div>
+      {%- endif -%}
       {%- endfor %}
     </div>
   </div>

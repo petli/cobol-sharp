@@ -11,15 +11,17 @@ class PythonishFormatter(object):
 
     def format_method(self, method):
         self._output.comment(method.cobol_section.comment)
-        self._output.line('def {}():'.format(method.cobol_section.name),
-                          href_section=method.cobol_section,
-                          anchor='func.{}'.format(method.cobol_section.name),
-                          xref_stmts=method.cobol_section.xref_stmts)
+        text = 'def {}():'.format(method.cobol_section.name)
+        with self._output.block(text):
+            self._output.line(text,
+                              href_section=method.cobol_section,
+                              anchor='func.{}'.format(method.cobol_section.name),
+                              xref_stmts=method.cobol_section.xref_stmts)
 
-        with self._output.indent():
-            self.format_block(method.block)
+            with self._output.indent():
+                self.format_block(method.block)
 
-        self._output.line()
+            self._output.line()
 
 
     def format_block(self, block):
@@ -31,24 +33,29 @@ class PythonishFormatter(object):
             if isinstance(stmt, If):
                 self._output.line()
                 self._output.comment(stmt.cobol_stmt.comment)
-                self._output.line('if {}:'.format(stmt.condition),
-                                  source=stmt.condition.source)
 
-                with self._output.indent():
-                    self.format_block(stmt.then_block)
+                text = 'if {}:'.format(stmt.condition)
+                with self._output.block(text):
+                    self._output.line(text, source=stmt.condition.source)
+
+                    with self._output.indent():
+                        self.format_block(stmt.then_block)
 
                 while len(stmt.else_block.stmts) == 1 and isinstance(stmt.else_block.stmts[0], If):
                     stmt = stmt.else_block.stmts[0]
                     self._output.comment(stmt.cobol_stmt.comment)
-                    self._output.line('elif {}:'.format(stmt.condition),
-                                      source=stmt.condition.source)
-                    with self._output.indent():
-                        self.format_block(stmt.then_block)
+
+                    text = 'elif {}:'.format(stmt.condition)
+                    with self._output.block(text):
+                        self._output.line(text, source=stmt.condition.source)
+                        with self._output.indent():
+                            self.format_block(stmt.then_block)
 
                 if stmt.else_block.stmts:
-                    self._output.line('else:')
-                    with self._output.indent():
-                        self.format_block(stmt.else_block)
+                    with self._output.block('else:'):
+                        self._output.line('else:')
+                        with self._output.indent():
+                            self.format_block(stmt.else_block)
 
                 self._output.line()
 
@@ -72,21 +79,27 @@ class PythonishFormatter(object):
             elif isinstance(stmt, While):
                 self._output.line()
                 self._output.comment(stmt.cobol_para.comment)
-                self._output.line('while {}:'.format(stmt.condition),
-                                  source=stmt.cobol_branch_stmt.condition.source,
-                                  href_para=stmt.cobol_para)
 
-                with self._output.indent():
-                    self.format_block(stmt.block)
+                text = 'while {}:'.format(stmt.condition)
+                with self._output.block(text):
+                    self._output.line(text,
+                                      source=stmt.cobol_branch_stmt.condition.source,
+                                      href_para=stmt.cobol_para)
+
+                    with self._output.indent():
+                        self.format_block(stmt.block)
 
                 self._output.line()
 
             elif isinstance(stmt, Forever):
                 self._output.line()
                 self._output.comment(stmt.cobol_para.comment)
-                self._output.line('while True:', href_para=stmt.cobol_para)
-                with self._output.indent():
-                    self.format_block(stmt.block)
+
+                text = 'while True:'
+                with self._output.block(text):
+                    self._output.line(text, href_para=stmt.cobol_para)
+                    with self._output.indent():
+                        self.format_block(stmt.block)
                 self._output.line()
 
             elif isinstance(stmt, Break):

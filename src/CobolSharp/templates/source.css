@@ -30,6 +30,46 @@ div.source {
     width: 100%;
 }
 
+div.block {
+    /* So that the folding buttons can be pushed to the right of line numbers */
+    position: relative;
+}
+
+div.block button.fold-button {
+    position: absolute;
+    display: block;
+    left: 6ex;
+    margin-left: 4px;
+    padding: 0px;
+    border: none;
+    background: none;
+    color: #888;
+}
+
+div.block button.unfold-top {
+    top: 0px;
+}
+
+div.unfolded-block button.unfold-top {
+    display: none;
+}
+
+div.block button.fold-top {
+    top: 0px;
+}
+
+div.folded-block button.fold-top {
+    visible: none;
+}
+
+div.block button.fold-bottom {
+    bottom: 0px;
+}
+
+div.folded-block button.fold-bottom {
+    visible: none;
+}
+
 div.source div:target {
     font-weight: bold;
 }
@@ -38,6 +78,8 @@ div.source div.line {
     font-family: monospace;
     white-space: nowrap;
     margin-top: 1px;
+
+    /* So that the reference buttons can be pushed to the right of line numbers */
     position: relative;
 }
 
@@ -59,6 +101,7 @@ div#output div.code {
 
 a.link-def {
     position: absolute;
+    top: 0px;
     left: 6ex;
     padding-left: 4px;
 }

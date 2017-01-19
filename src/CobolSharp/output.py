@@ -31,6 +31,21 @@ class Outputter(object):
     def dec_indent(self):
         self._indent -= 1
 
+
+    @contextmanager
+    def block(self, name=None):
+        start_line = self._lineno
+        self.start_block(name)
+        yield
+        self.end_block(name, self._lineno - start_line)
+
+    def start_block(self, name=None):
+        pass
+
+    def end_block(self, name=None, size=0):
+        pass
+
+
     def line(self, text='', source=None, href_para=None, href_section=None,
              href_output=None, anchor=None, comment=False, xref_stmts=None):
         text = str(text)
@@ -73,7 +88,7 @@ class TextOutputter(Outputter):
         indent = ' ' * self.INDENT_SPACES * line.indent
 
         if line.xref_stmts:
-            self._file.write('{}{} Referneces\n'.format(indent, self.comment_prefix))
+            self._file.write('{}{} References\n'.format(indent, self.comment_prefix))
             for stmt in line.xref_stmts:
                 self._file.write('{}{} {:6d}: {}\n'.format(
                     indent, self.comment_prefix,
@@ -117,23 +132,41 @@ class HtmlOutputter(Outputter):
                              for i, line
                              in enumerate(cobol_program.source.text.split('\n'))]
 
-        self._output_lines = []
+        self._items = []
+        self._blocks = []
 
 
     def close(self):
         template = template_env.get_template('main.html')
         template.stream(
             cobol_lines=self._cobol_lines,
-            output_lines=self._output_lines,
+            items=self._items,
             comment_prefix=self.comment_prefix,
+
+            # Needed for template logic
+            isinstance=isinstance,
+            OutputLine=OutputLine,
+            StartBlock=StartBlock,
+            EndBlock=EndBlock,
         ).dump(self._file)
 
         self._cobol_lines = None
-        self._output_lines = None
+        self._items = None
+
+
+    def start_block(self, name=None):
+        block = StartBlock(name, 0)
+        self._items.append(block)
+        self._blocks.append(block)
+
+    def end_block(self, name=None, size=0):
+        start = self._blocks.pop()
+        start.size = size
+        self._items.append(EndBlock(name, size))
 
 
     def _output_line(self, line):
-        self._output_lines.append(line)
+        self._items.append(line)
 
         # Cross-reference usages
         if line.source:
@@ -174,6 +207,18 @@ class OutputLine(object):
         self.anchor = anchor
         self.comment = comment
         self.xref_stmts = xref_stmts
+
+
+class StartBlock(object):
+    def __init__(self, name, size):
+        self.name = name
+        self.size = size
+
+
+class EndBlock(object):
+    def __init__(self, name, size):
+        self.name = name
+        self.size = size
 
 
 def filter_code_span_class(line):
