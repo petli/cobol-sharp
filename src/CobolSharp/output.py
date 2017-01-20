@@ -33,24 +33,23 @@ class Outputter(object):
 
 
     @contextmanager
-    def block(self, name=None):
-        start_line = self._lineno
-        self.start_block(name)
+    def block(self, line):
+        self.start_block(line)
         yield
-        self.end_block(name, self._lineno - start_line)
+        self.end_block()
 
-    def start_block(self, name=None):
+    def start_block(self, line):
+        self += line
+
+    def end_block(self):
         pass
 
-    def end_block(self, name=None, size=0):
-        pass
 
+    def line(self, line=None):
+        if not line:
+            line = Line()
 
-    def line(self, text='', source=None, href_para=None, href_section=None,
-             href_output=None, anchor=None, comment=False, xref_stmts=None):
-        text = str(text)
-
-        if not text:
+        if not line.text:
             if self._last_line_was_empty or self._first_line_after_indent:
                 return
             self._last_line_was_empty = True
@@ -59,16 +58,25 @@ class Outputter(object):
             self._last_line_was_empty = False
 
         self._lineno += 1
-        self._output_line(OutputLine(self._lineno, self._indent, text,
-                                     source, href_para, href_section, href_output,
-                                     anchor, comment, xref_stmts))
+        line.number = self._lineno
+        line.indent = self._indent
+        self._output_line(line)
+
+
+    def __iadd__(self, line):
+        self.line(line)
+        return self
+
 
     def comment(self, comment):
-        if comment:
-            self.line()
-            for line in comment.split('\n'):
-                self.line('{} {}'.format(self.comment_prefix, line), comment=True)
-            
+        if not comment:
+            return
+
+        self += Line()
+        for text in comment.split('\n'):
+            self += Line('{} {}'.format(self.comment_prefix, text),
+                         comment=True)
+
 
     def _output_line(self, line):
         raise NotImplementedError()
@@ -145,7 +153,7 @@ class HtmlOutputter(Outputter):
 
             # Needed for template logic
             isinstance=isinstance,
-            OutputLine=OutputLine,
+            Line=Line,
             StartBlock=StartBlock,
             EndBlock=EndBlock,
         ).dump(self._file)
@@ -154,15 +162,22 @@ class HtmlOutputter(Outputter):
         self._items = None
 
 
-    def start_block(self, name=None):
-        block = StartBlock(name, 0)
+    def start_block(self, line):
+        block = StartBlock(line)
         self._items.append(block)
         self._blocks.append(block)
+        self += line
 
-    def end_block(self, name=None, size=0):
+    def end_block(self):
         start = self._blocks.pop()
-        start.size = size
-        self._items.append(EndBlock(name, size))
+
+        size = self._lineno - start.line.number
+        if size < 5:
+            start.suppress = True
+        else:
+            start.line.first_in_block = True
+
+        self._items.append(EndBlock(start))
 
 
     def _output_line(self, line):
@@ -194,12 +209,13 @@ def link(link_type, link_id):
     return '{}.{}'.format(link_type, link_id)
 
 
-class OutputLine(object):
-    def __init__(self, number, indent, text, source, href_para, href_section,
-                 href_output, anchor, comment, xref_stmts):
-        self.number = number
-        self.indent = indent
-        self.text = text
+class Line(object):
+    def __init__(self, text='', source=None, href_para=None, href_section=None,
+             href_output=None, anchor=None, comment=False, xref_stmts=None):
+        self.number = 0
+        self.indent = 0
+        self.first_in_block = False
+        self.text = str(text)
         self.source = source
         self.href_para = href_para
         self.href_section = href_section
@@ -210,15 +226,14 @@ class OutputLine(object):
 
 
 class StartBlock(object):
-    def __init__(self, name, size):
-        self.name = name
-        self.size = size
+    def __init__(self, line):
+        self.line = line
+        self.suppress = False
 
 
 class EndBlock(object):
-    def __init__(self, name, size):
-        self.name = name
-        self.size = size
+    def __init__(self, start):
+        self.start = start
 
 
 def filter_code_span_class(line):

@@ -29,12 +29,9 @@
   <div id="output">
     <div class="source">
       {% for item in items -%}
-      {%- if isinstance(item, StartBlock) %}
+      {%- if isinstance(item, StartBlock) and not item.suppress %}
       <div class="block unfolded-block">
-      {% if item.size > 5 -%}
-      {%- set first_line_in_block = True -%}
-      {%- endif -%}
-      {%- elif isinstance(item, OutputLine) %}
+      {%- elif isinstance(item, Line) %}
       {%- if item.xref_stmts %}
       <div class="line">
         <div class="lineno"></div>
@@ -51,11 +48,10 @@
       </div>
       {% endfor -%}
       {%- endif -%}
-      <div id="output.{{ item.number }}" class="line {{ 'first-line-block' if first_line_in_block }}">
-        {%- if first_line_in_block -%}
+      <div id="output.{{ item.number }}" class="line {{ 'block-first-line' if item.first_in_block }}">
+        {%- if item.first_in_block -%}
           <button type="button" class="fold-button fold-top" aria-label="Fold block"><span class="octicon octicon-fold" aria-hidden="true"></span></button>
           <button type="button" class="fold-button unfold-top" aria-label="Unfold block"><span class="octicon octicon-unfold" aria-hidden="true"></span></button>
-        {%- set first_line_in_block = False -%}
         {% endif %}
         {%- if item.href_output -%}
           <a class="link-def" href="#{{item.href_output}}" aria-label="Go to definition"><span class="octicon octicon-tag" aria-hidden="true"></span></a>
@@ -65,11 +61,9 @@
             {%- for i in range(item.indent) %}<span class="indent indent{{ i % 8 }}"></span>    {% endfor -%}
             <span class="{{ item | code_span.class }}">{{ item.text |e }}</span></a></div>
       </div>
-      {%- elif isinstance(item, EndBlock) %}
-      {% if item.size > 5 -%}
-        <!-- button type="button" class="fold-button fold-bottom" aria-label="Fold block"><span class="octicon octicon-fold" aria-hidden="true"></span></button -->
-      {%- endif %}
-      </div>
+      {%- elif isinstance(item, EndBlock) and not item.start.suppress %}
+          <!-- button type="button" class="fold-button fold-bottom" aria-label="Fold block"><span class="octicon octicon-fold" aria-hidden="true"></span></button -->
+        </div>
       {%- endif -%}
       {%- endfor %}
     </div>
