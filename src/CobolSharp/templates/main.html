@@ -31,7 +31,22 @@
       {% for item in items -%}
       {%- if isinstance(item, StartBlock) and not item.suppress %}
       <div class="block unfolded-block">
+
       {%- elif isinstance(item, Line) %}
+      <div id="output.{{ item.number }}" class="line {{ 'block-first-line' if item.first_in_block }}">
+        {%- if item.first_in_block -%}
+          <button type="button" class="fold-button fold-top" aria-label="Fold block"><span class="octicon octicon-fold" aria-hidden="true"></span></button>
+          <button type="button" class="fold-button unfold" aria-label="Unfold block"><span class="octicon octicon-unfold" aria-hidden="true"></span></button>
+        {% endif %}
+        {%- if item.href_output -%}
+          <a class="link-def" href="#{{item.href_output}}" aria-label="Go to definition"><span class="octicon octicon-tag" aria-hidden="true"></span></a>
+        {%- endif -%}
+        <div class="lineno"><a href="#output.{{ item.number }}">{{ item.number }}</a></div>
+        <div class="code" id="{{ item.anchor }}"><a href="#{{ item | output_line.href }}">
+            {%- for i in range(item.indent) %}<span class="indent indent{{ i % 8 }}"></span>    {% endfor -%}
+            <span class="{{ item | code_span.class }}">{{ item.text |e }}</span></a></div>
+      </div>
+
       {%- if item.xref_stmts %}
       <div class="line">
         <div class="lineno"></div>
@@ -48,19 +63,7 @@
       </div>
       {% endfor -%}
       {%- endif -%}
-      <div id="output.{{ item.number }}" class="line {{ 'block-first-line' if item.first_in_block }}">
-        {%- if item.first_in_block -%}
-          <button type="button" class="fold-button fold-top" aria-label="Fold block"><span class="octicon octicon-fold" aria-hidden="true"></span></button>
-          <button type="button" class="fold-button unfold-top" aria-label="Unfold block"><span class="octicon octicon-unfold" aria-hidden="true"></span></button>
-        {% endif %}
-        {%- if item.href_output -%}
-          <a class="link-def" href="#{{item.href_output}}" aria-label="Go to definition"><span class="octicon octicon-tag" aria-hidden="true"></span></a>
-        {%- endif -%}
-        <div class="lineno"><a href="#output.{{ item.number }}">{{ item.number }}</a></div>
-        <div class="code" id="{{ item.anchor }}"><a href="#{{ item | output_line.href }}">
-            {%- for i in range(item.indent) %}<span class="indent indent{{ i % 8 }}"></span>    {% endfor -%}
-            <span class="{{ item | code_span.class }}">{{ item.text |e }}</span></a></div>
-      </div>
+
       {%- elif isinstance(item, EndBlock) and not item.start.suppress %}
           <!-- button type="button" class="fold-button fold-bottom" aria-label="Fold block"><span class="octicon octicon-fold" aria-hidden="true"></span></button -->
         </div>
@@ -69,5 +72,11 @@
     </div>
   </div>
 
+  <script src="https://code.jquery.com/jquery-3.1.1.slim.min.js"
+	  integrity="sha256-/SIrNqv8h6QGKDuNoLGA4iret+kyesCkHGzVUUV0shc="
+	  crossorigin="anonymous"></script>
+  <script type="text/javascript">
+    {% include "ui.js" %}
+  </script>
 </body>
 </html>

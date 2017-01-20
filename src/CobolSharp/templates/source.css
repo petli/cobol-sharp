@@ -30,14 +30,20 @@ div.source {
     width: 100%;
 }
 
+
+/*
+ * Block folding styles
+ */
+
 div.block {
     /* So that the folding buttons can be pushed to the right of line numbers */
     position: relative;
 }
 
+/* Show/hide fold buttons */
 div.block button.fold-button {
     position: absolute;
-    display: block;
+    display: none;
     left: 6ex;
     margin-left: 4px;
     padding: 0px;
@@ -46,29 +52,51 @@ div.block button.fold-button {
     color: #888;
 }
 
-div.block button.unfold-top {
+div.block button.unfold {
     top: 0px;
 }
 
-div.unfolded-block button.unfold-top {
-    display: none;
+div.folded-block > div.line > button.unfold {
+    display: block;
 }
 
 div.block button.fold-top {
     top: 0px;
 }
 
-div.folded-block button.fold-top {
-    visible: none;
+div.unfolded-block > div.line >  button.fold-top {
+    display: block;
 }
 
 div.block button.fold-bottom {
     bottom: 0px;
 }
 
-div.folded-block button.fold-bottom {
-    visible: none;
+div.unfolded-block > div.line >  button.fold-bottom {
+    display: block;
 }
+
+/* Hide folded lines, except for the first one in the outermost folded block */
+div.folded-block div.line {
+    display: none;
+}
+
+div.folded-block > div.line.block-first-line {
+    display: block;
+}
+
+div.folded-block div.folded-block > div.line.block-first-line {
+    display: none;
+}
+
+div.folded-block > div.line.block-first-line::after {
+    content: "...";
+}
+
+
+/*
+ * Line display styles
+ */
 
 div.source div:target {
     font-weight: bold;
@@ -118,6 +146,11 @@ div.unused div.code a {
 span.comment {
     color: #888;
 }
+
+
+/*
+ * Indentation colours
+ */
 
 /* Color scheme from http://www.colorschemer.com/schemes/viewscheme.php?id=8924 */
 span.level0 {
