@@ -373,7 +373,7 @@ class ProgramParser(object):
             raise ParserError('line {}: unsupported perform statement'.format(
                 perform_el.get('from-line')))
 
-        proc_name = proc_name_el.text
+        proc_name = proc_name_el.text.lower()
 
         stmt = PerformSectionStatement(self._source(perform_el), sentence, proc_name)
         stmt.next_stmt = next_stmt
