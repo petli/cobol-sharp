@@ -1,8 +1,10 @@
 # Copyright 2016 Peter Liljenberg <peter.liljenberg@gmail.com>
 # Licensed under GPLv3, see file LICENSE in the top directory
 
+import os
 from contextlib import contextmanager
 from jinja2 import Environment, PackageLoader
+from pkg_resources import get_distribution
 
 class Outputter(object):
     INDENT_SPACES = 4
@@ -147,9 +149,11 @@ class HtmlOutputter(Outputter):
     def close(self):
         template = template_env.get_template('main.html')
         template.stream(
+            program_path=os.path.basename(self._program.path),
             cobol_lines=self._cobol_lines,
             items=self._items,
             comment_prefix=self.comment_prefix,
+            version=get_distribution('cobol-sharp').version,
 
             # Needed for template logic
             isinstance=isinstance,

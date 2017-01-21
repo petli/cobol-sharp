@@ -1,14 +1,16 @@
 
+/* Main layout */
 body {
     width: 100%;
     height: 100%;
+    font-family: sans-serif;
 }
 
 div#cobol {
     position: fixed;
     left: 0px;
     top: 0px;
-    bottom: 0px;
+    bottom: 20px;
     width: 50%;
     overflow: auto;
 }
@@ -17,17 +19,50 @@ div#output {
     position: fixed;
     right: 0px;
     top: 0px;
-    bottom: 0px;
+    bottom: 20px;
     width: 50%;
     overflow: auto;
 }
 
 
+div#controls {
+    position: absolute;
+    bottom: 0px;
+    left: 0px;
+    right: 50%;
+    padding: 4px 8px;
+    background-color: #ccc;
+    z-index: 100;
+}
+
+div#controls form div {
+    vertical-align: middle;
+}
+
+div#controls label {
+    white-space: nowrap;
+    font-size: 14px;
+}
+
+div#footer {
+    position: fixed;
+    height: 20px;
+    left: 50%;
+    right: 0px;
+    bottom: 0px;
+    padding: 2px 4px;
+    background-color: #ccc;
+    font-size: 14px;
+    text-align: right;
+}
+
 div.source {
+    width: 100%;
     color: black;
     background-color: white;
     border: none;
-    width: 100%;
+    padding-top: 10px;
+    padding-bottom: 100px;
 }
 
 
@@ -93,6 +128,9 @@ div.folded-block > div.line.block-first-line::after {
     content: "...";
 }
 
+div.show-only-code button.fold-button {
+    display: none !important;
+}
 
 /*
  * Line display styles
@@ -104,6 +142,7 @@ div.source div:target {
 
 div.source div.line {
     font-family: monospace;
+    font-size: 12px;
     white-space: nowrap;
     margin-top: 1px;
 
@@ -115,6 +154,10 @@ div.lineno {
     display: inline-block;
     text-align: right;
     min-width: 6ex;
+}
+
+div.show-only-code div.lineno {
+    display: none;
 }
 
 div.code {
@@ -133,6 +176,11 @@ a.link-def {
     left: 6ex;
     padding-left: 4px;
 }
+
+div.show-only-code a.link-def {
+    display: none;
+}
+
 
 div.code a {
     color: black;
@@ -153,72 +201,72 @@ span.comment {
  */
 
 /* Color scheme from http://www.colorschemer.com/schemes/viewscheme.php?id=8924 */
-span.level0 {
+div.show-level-colors span.level0 {
     background-color: #c4daf4;
 }
 
-span.level1 {
+div.show-level-colors span.level1 {
     background-color: #c4f0f4;
 }
 
-span.level2 {
+div.show-level-colors span.level2 {
     background-color: #c7f5c4;
 }
 
-span.level3 {
+div.show-level-colors span.level3 {
     background-color: #fffecc;
 }
 
-span.level4 {
+div.show-level-colors span.level4 {
     background-color: #ffeacc;
 }
 
-span.level5 {
+div.show-level-colors span.level5 {
     background-color: #ffcccc;
 }
 
-span.level6 {
+div.show-level-colors span.level6 {
     background-color: #e1c4f5;
 }
 
-span.level7 {
+div.show-level-colors span.level7 {
     background-color: #c9c4f4;
 }
 
 
-span.indent {
+div.show-indent-guides span.indent {
     outline: 1px solid;
 }
 
-span.indent0 {
+div.show-indent-guides span.indent0 {
     outline-color: #c4daf4;
 }
 
-span.indent1 {
+div.show-indent-guides span.indent1 {
     outline-color: #c4f0f4;
 }
 
-span.indent2 {
+div.show-indent-guides span.indent2 {
     outline-color: #c7f5c4;
 }
 
-span.indent3 {
+div.show-indent-guides span.indent3 {
     outline-color: #fffecc;
 }
 
-span.indent4 {
+div.show-indent-guides span.indent4 {
     outline-color: #ffeacc;
 }
 
-span.indent5 {
+div.show-indent-guides span.indent5 {
     outline-color: #ffcccc;
 }
 
-span.indent6 {
+div.show-indent-guides span.indent6 {
     outline-color: #e1c4f5;
 }
 
-span.indent7 {
+div.show-indent-guides span.indent7 {
     outline-color: #c9c4f4;
 }
 

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <title>CobolSharp</title>
+  <title>{{ program_path }}</title>
   <style type="text/css">
     {% include "source.css" %}
   </style>
@@ -13,8 +13,24 @@
 </head>
 <body>
 
+  <div id="controls">
+    <form>
+      <div>
+        <button type="button" id="fold-functions">Fold functions</button>
+        <button type="button" id="unfold-functions">Unfold functions</button>
+        <button type="button" id="fold-all">Fold all</button>
+        <button type="button" id="unfold-all">Unfold all</button>
+      </div>
+      <div>
+        <label><input type="checkbox" id="only-code">Show only code</label>
+        <label><input type="checkbox" id="level-colors" checked>Code level colors</label>
+        <label><input type="checkbox" id="indent-guides" checked>Indent guides</label>
+      </div>
+    </form>
+  </div>
+
   <div id="cobol">
-    <div class="source">
+    <div class="source show-level-colors show-indent-guides">
       {% for line in cobol_lines -%}
 
       <div id="cobol.{{ line.number }}" class="line {{ line | cobol_line.class }}">
@@ -27,7 +43,7 @@
   </div>
 
   <div id="output">
-    <div class="source">
+    <div class="source show-level-colors show-indent-guides">
       {% for item in items -%}
       {%- if isinstance(item, StartBlock) and not item.suppress %}
       <div class="block unfolded-block">
@@ -70,6 +86,10 @@
       {%- endif -%}
       {%- endfor %}
     </div>
+  </div>
+
+  <div id="footer">
+    Generated with <a href="https://github.com/petli/cobol-sharp">CobolSharp</a> v{{ version }}.
   </div>
 
   <script src="https://code.jquery.com/jquery-3.1.1.slim.min.js"
