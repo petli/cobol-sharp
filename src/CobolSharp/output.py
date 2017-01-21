@@ -9,13 +9,12 @@ from pkg_resources import get_distribution
 class Outputter(object):
     INDENT_SPACES = 4
 
-    def __init__(self):
-        self.comment_prefix = ''
-
+    def __init__(self, language):
+        self._lang = language
         self._lineno = 0
         self._indent = 0
         self._first_line_after_indent = False
-        self._last_line_was_empty = False
+        self._pending_empty_line = False
 
     def close(self):
         pass
@@ -29,9 +28,12 @@ class Outputter(object):
     def inc_indent(self):
         self._indent += 1
         self._first_line_after_indent = True
+        self._pending_empty_line = False
 
     def dec_indent(self):
         self._indent -= 1
+        self._first_line_after_indent = False
+        self._pending_empty_line = False
 
 
     @contextmanager
@@ -48,17 +50,20 @@ class Outputter(object):
 
 
     def line(self, line=None):
-        if not line:
-            line = Line()
+        if not line or not line.text:
+            if not self._first_line_after_indent:
+                self._pending_empty_line = True
+            return
 
-        if not line.text:
-            if self._last_line_was_empty or self._first_line_after_indent:
-                return
-            self._last_line_was_empty = True
-        else:
-            self._first_line_after_indent = False
-            self._last_line_was_empty = False
+        if self._pending_empty_line:
+            self._do_output(Line())
+            self._pending_empty_line = False
 
+        self._first_line_after_indent = False
+        self._do_output(line)
+
+
+    def _do_output(self, line):
         self._lineno += 1
         line.number = self._lineno
         line.indent = self._indent
@@ -76,8 +81,7 @@ class Outputter(object):
 
         self += Line()
         for text in comment.split('\n'):
-            self += Line('{} {}'.format(self.comment_prefix, text),
-                         comment=True)
+            self += Line(self._lang.comment_format(text), comment=True)
 
 
     def _output_line(self, line):
@@ -90,20 +94,12 @@ class TextOutputter(Outputter):
 
     LINK_COLUMN = 60
 
-    def __init__(self, output_file):
-        super(TextOutputter, self).__init__()
+    def __init__(self, output_file, language):
+        super(TextOutputter, self).__init__(language)
         self._file = output_file
 
     def _output_line(self, line):
         indent = ' ' * self.INDENT_SPACES * line.indent
-
-        if line.xref_stmts:
-            self._file.write('{}{} References\n'.format(indent, self.comment_prefix))
-            for stmt in line.xref_stmts:
-                self._file.write('{}{} {:6d}: {}\n'.format(
-                    indent, self.comment_prefix,
-                    stmt.source.from_line,
-                    stmt.sentence.para.section.name))
 
         self._file.write(indent)
         self._file.write(line.text)
@@ -124,17 +120,23 @@ class TextOutputter(Outputter):
             if w < self.LINK_COLUMN:
                 self._file.write(' ' * (self.LINK_COLUMN - w))
 
-            self._file.write('{} {}'.format(self.comment_prefix, ', '.join(refs)))
+            self._file.write(self._lang.comment_format(', '.join(refs)))
 
         self._file.write('\n')
+
+        if line.xref_stmts:
+            self._file.write('{}{}\n'.format(indent, self._lang.comment_format('References')))
+            for stmt in line.xref_stmts:
+                ref = '{:6d}: {}'.format(stmt.source.from_line, stmt.sentence.para.section.name)
+                self._file.write('{}{} \n'.format(indent, self._lang.comment_format(ref)))
 
 
 class HtmlOutputter(Outputter):
     """Output formatted code together with original Cobol as an HTML page.
     """
 
-    def __init__(self, cobol_program, output_file):
-        super(HtmlOutputter, self).__init__()
+    def __init__(self, cobol_program, output_file, language):
+        super(HtmlOutputter, self).__init__(language)
         self._file = output_file
         self._program = cobol_program
 
@@ -152,7 +154,8 @@ class HtmlOutputter(Outputter):
             program_path=os.path.basename(self._program.path),
             cobol_lines=self._cobol_lines,
             items=self._items,
-            comment_prefix=self.comment_prefix,
+            comment_format=self._lang.comment_format,
+            bottom_fold_button=not not self._lang.close_block,
             version=get_distribution('cobol-sharp').version,
 
             # Needed for template logic

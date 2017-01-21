@@ -21,6 +21,13 @@ OUTPUT_FORMATS = [
     'html'
     ]
 
+LANGUAGES = {
+    'py': Pythonish,
+    'python': Pythonish,
+    'cs': CSharpish,
+    'C#': CSharpish,
+}
+
 def main():
     args = parser.parse_args()
     for source_path in args.sources:
@@ -43,18 +50,20 @@ def main():
 
 
 def process_program(args, output_base, program):
+    language = LANGUAGES[args.language]
+
     if args.format == 'code':
-        path = '{}.py'.format(output_base)
-        outputter = TextOutputter(open(path, 'wt', encoding='utf-8'))
+        path = '{}.{}'.format(output_base, language.file_suffix)
+        outputter = TextOutputter(open(path, 'wt', encoding='utf-8'), language)
     elif args.format == 'html':
         path = '{}.html'.format(output_base)
-        outputter = HtmlOutputter(program, open(path, 'wt', encoding='utf-8'))
+        outputter = HtmlOutputter(program, open(path, 'wt', encoding='utf-8'), language)
     else:
         path = None
         outputter = None
 
     if outputter:
-        formatter = PythonishFormatter(outputter)
+        formatter = CodeFormatter(outputter, language)
     else:
         formatter = None
 
@@ -165,6 +174,8 @@ parser.add_argument('-s', '--section',
                     help='override start section, or only output graph for this one')
 parser.add_argument('-f', '--format', choices=OUTPUT_FORMATS, default='html',
                     help='output format (default html)')
+parser.add_argument('-l', '--language', choices=sorted(LANGUAGES.keys()), default='C#',
+                    help='generated code language-ish (default C#)')
 parser.add_argument('-t', '--tabsize', type=int, default=4,
                     help='expand tabs by this many spaces (default 4)')
 parser.add_argument('-e', '--encoding', default='iso-8859-1',
@@ -175,4 +186,3 @@ parser.add_argument('-D', '--debug', action='store_true',
                     help='debug mode aiding in inspecting the analysis results')
 parser.add_argument('-u', '--unused', action='store_true',
                     help='include sections not referenced from any reachable code')
-

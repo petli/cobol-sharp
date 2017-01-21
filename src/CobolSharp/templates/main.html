@@ -68,20 +68,22 @@
         <div class="lineno"></div>
         <div class="code">
           {%- for i in range(item.indent) %}<span class="indent indent{{ i % 8 }}"></span>    {% endfor -%}
-            <span class="comment">{{ comment_prefix }} References:</span></div>
+            <span class="comment">{{ comment_format('References:') }}</span></div>
       </div>
       {% for stmt in item.xref_stmts|sort -%}
       <div class="line">
         <div class="lineno"></div>
         <div class="code"><a href="#cobol.{{ stmt.source.from_line }}">
             {%- for i in range(item.indent) %}<span class="indent indent{{ i % 8 }}"></span>    {% endfor -%}
-            <span class="comment">{{ comment_prefix }} {{ '{:6d}'.format(stmt.source.from_line) }}: {{ stmt.sentence.para.section.name |e }}</span></a></div>
+            <span class="comment">{{ comment_format('{:6d}: {}'.format(stmt.source.from_line, stmt.sentence.para.section.name)) |e }}</span></a></div>
       </div>
       {% endfor -%}
       {%- endif -%}
 
       {%- elif isinstance(item, EndBlock) and not item.start.suppress %}
-          <!-- button type="button" class="fold-button fold-bottom" aria-label="Fold block"><span class="octicon octicon-fold" aria-hidden="true"></span></button -->
+        {%- if bottom_fold_button %}
+          <button type="button" class="fold-button fold-bottom" aria-label="Fold block"><span class="octicon octicon-fold" aria-hidden="true"></span></button>
+        {% endif %}
         </div>
       {%- endif -%}
       {%- endfor %}

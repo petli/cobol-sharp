@@ -107,8 +107,12 @@ div.block button.fold-bottom {
     bottom: 0px;
 }
 
-div.unfolded-block > div.line >  button.fold-bottom {
+div.unfolded-block > button.fold-bottom {
     display: block;
+}
+
+div.folded-block div.unfolded-block > button.fold-bottom {
+    display: none;
 }
 
 /* Hide folded lines, except for the first one in the outermost folded block */

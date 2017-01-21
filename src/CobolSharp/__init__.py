@@ -6,5 +6,5 @@
 from .koopa import parse, run_koopa
 from .graph import StmtGraph, CobolStructureGraph, AcyclicStructureGraph, ScopeStructuredGraph
 from .output import Outputter, TextOutputter, HtmlOutputter
-from .format import PythonishFormatter
+from .format import Pythonish, CSharpish, CodeFormatter
 

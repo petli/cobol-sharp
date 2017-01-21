@@ -67,7 +67,7 @@ def cobol_block(cobol_scope_graph):
 
     print('############################################')
     print()
-    formatter = PythonishFormatter(TextOutputter(sys.stdout))
+    formatter = CodeFormatter(TextOutputter(sys.stdout, Pythonish), Pythonish)
     formatter.format_block(block)
     print()
     print('############################################')
