@@ -8,14 +8,27 @@ needs_pytest = set(['ptr', 'pytest', 'test']).intersection(sys.argv)
 pytest_runner = ['pytest-runner'] if needs_pytest else []
 
 setup(
-    name = 'cobol-sharp',
+    name = 'cobolsharp',
     version = '0.1',
     license = 'GPLv3',
-    description = 'Cobol code revisualiser',
+    description = 'COBOL code revisualizer',
     author = 'Peter Liljenberg',
     author_email = 'peter.liljenberg@gmail.com',
     keywords = 'cobol code analysis',
     url = 'https://github.com/petli/cobol-sharp',
+
+    # Not sure exact minimum Python3 version, but this is probably
+    # a fairly good stab
+    python_requires = '~= 3.3',
+
+    classifiers = [
+        'Development Status :: 4 - Beta',
+        'Environment :: Console',
+        'Intended Audience :: Developers',
+        'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
+        'Topic :: Software Development',
+        'Programming Language :: Python :: 3 :: Only',
+    ],
 
     entry_points = {
         'console_scripts': [

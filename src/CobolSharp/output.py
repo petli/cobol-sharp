@@ -156,7 +156,7 @@ class HtmlOutputter(Outputter):
             items=self._items,
             comment_format=self._lang.comment_format,
             bottom_fold_button=not not self._lang.close_block,
-            version=get_distribution('cobol-sharp').version,
+            version=get_distribution('cobolsharp').version,
 
             # Needed for template logic
             isinstance=isinstance,
