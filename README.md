@@ -17,6 +17,11 @@ would not be much less messy to maintain than the original code.
 (Despite the harsh tone in the previous paragraph, pull requests to
 translate expression and data structures too will be accepted!)
 
+## Example output
+
+<a href="https://raw.githubusercontent.com/petli/cobol-sharp/master/doc/example.png">
+<img src="https://raw.githubusercontent.com/petli/cobol-sharp/master/doc/example.png" width="600">
+</a>
 
 ## Background
 
