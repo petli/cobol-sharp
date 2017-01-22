@@ -93,8 +93,8 @@ class CodeFormatter(object):
                     self._format_if(stmt)
 
                 elif isinstance(stmt, GotoLabel):
-                    self._output += Line()
                     self._output.dec_indent()
+                    self._output += Line()
                     self._output += Line(self._lang.label_format(stmt.name),
                                          href_para=stmt.cobol_para,
                                          anchor='label.{}'.format(stmt.name))
