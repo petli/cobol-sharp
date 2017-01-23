@@ -71,4 +71,24 @@ $(function() {
     showCode($('input#only-code').prop('checked'));
     showLevelColors($('input#level-colors').prop('checked'));
     showIndentGuides($('input#indent-guides').prop('checked'));
+
+
+    function scrollToTarget() {
+        var target = $(':target').get(0);
+        if (target) {
+            target.scrollIntoView(true);
+        }
+    }
+
+    $(window).on('hashchange', scrollToTarget);
+
+    // Also scroll on reload, since browser may not do that
+    scrollToTarget();
+
+    $('div#output').on('click', 'a.link-def', function() {
+        // Inject a history location at the clicked line
+        // so it's easy to navigate back to it
+        var line = $(this).closest('div.line');
+        window.location.hash = '#' + line.get(0).id;
+    });
 });
