@@ -56,7 +56,7 @@ class Section(object):
         if self.first_para:
             return self.first_para.get_first_stmt()
 
-        raise None
+        return None
 
     def paras_in_order(self):
         para = self.first_para
