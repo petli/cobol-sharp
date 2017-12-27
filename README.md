@@ -14,14 +14,23 @@ just be COBOL code in fancy dress.  The COBOL data model is so far
 removed from what you'd use in C# or Python that the translated code
 would not be much less messy to maintain than the original code.
 
-(Despite the harsh tone in the previous paragraph, pull requests to
-translate expression and data structures too will be accepted!)
+Future extensions to this tool could usefully start looking at the
+data, though.  Perhaps not to translate COBOL fully into another
+language, but to show which sections share working storage and move
+local variables into functions or even inner scopes.
+
 
 ## Example output
 
 <a href="https://raw.githubusercontent.com/petli/cobol-sharp/master/doc/example.png">
 <img src="https://raw.githubusercontent.com/petli/cobol-sharp/master/doc/example.png" width="600">
 </a>
+
+(This fragment shows a bit of the first example here:
+http://docs.oracle.com/cd/A57673_01/DOC/api/doc/OCI73/apb.htm
+It was necessary to change `ORA-ERROR` into a section for CobolSharp
+to process it.)
+
 
 ## Background
 
@@ -44,21 +53,23 @@ code continued to be written in mostly a COBOL-74 way.
 
 # Installation
 
-CobolSharp requires Python 3 and a Java runtime installed in `$PATH`.
-Graphviz is needed to plot code graphs, but not for generating code.
-It works both on Unix-like systems and Windows.
+CobolSharp requires Python 3, and a Java runtime installed in `$PATH`.
+It has been tested on Linux and Windows, and should work fine on any
+Unix-like system too.  Graphviz is needed to plot code graphs, but not
+for generating code.
 
-CobolSharp can be installed systemwide with from PyPi:
+CobolSharp can be installed systemwide from PyPi:
 
     pip3 install cobolsharp
 
-Or for your own user, to avoid requiring root:
+Or for your own user, to avoid installing as root:
 
     pip3 install --user cobolsharp
 
 An executable script (or binary on Windows) called `cobolsharp` is
 installed.  If you install with `--user` it may not be in `$PATH`, but in
 `~/.local/bin/cobolsharp`.
+
 
 ## From code
 
@@ -71,12 +82,14 @@ For development setup it is recommended to use a `virtualenv`, e.g.:
 
     virtualenv --python=python3 ~/test/cobolsharp
     ~/test/cobolsharp/bin/python setup.py develop
+    ~/test/cobolsharp/bin/cobolsharp --help
+
 
 ## Unit tests
 
 There's a small test suite:
 
-    python3 setup.py test
+    ~/test/cobolsharp/bin/python setup.py test
 
 
 # Usage
@@ -120,7 +133,10 @@ Larger code blocks (currently five lines or more) in the translated
 source can be folded and unfolded.  There's a set of buttons to
 fold/unfold everything or all function levels.
 
-Functions and goto labels in the translated source 
+`perform` and `goto` statements in the translated source have a small
+link button in the margin, which navigates to the definition of the
+referenced section or label.  Browser navigation can be used to go
+back and forward between visited sections of the code.
 
 The indentation level in the translated code is colour-coded, and the
 corresponding line in the COBOL code has the same colour.  This can be
@@ -143,15 +159,17 @@ The graph formats produce `.dot` files.  They can be plotted into PNGs
 This tool will only work well for code that follows best practices on
 writing structured COBOL.  Mainly:
 
+* There are no cross-section `go to` jumps.
+
 * `perform` is only used to pass control to a single section, not a
   suite of them or of individual paragraphs.  I.e. a section
-  behaves as function.
-
-* There are no cross-section `go to` jumps.
+  must behave as function.
 
 In addition the tool only understands the COBOL supported by the Koopa
 parser, and may not handle all statements correctly even if they are
-parsed well.  See the project issue list for current outstanding issues.
+parsed well.  See the project issue list for current outstanding
+issues, and log a new issue, preferably with example code, if you find
+something more.
 
 
 # Translation process
@@ -173,14 +191,21 @@ The code is flattened for a local optimization, without attempting to
 find the optimal representation for a larger section of the code
 graph.  This can also be an area for improvements.
 
+The `--debug` command line flag will insert comments into the
+translated source (overwriting any comments in the same place in the
+original source) explaining the decisions taken at each loop and
+branch statement.
+
+
 ## But the translated code still contains gotos!
 
-Yes, it often will.  There are pathological cases which cannot be
-resolved in a structured way (see e.g. `test/crossedbranches.cbl`).
-The trade-off mentioned above will also keep some gotos in more
-complex code, and maybe even add labels that aren't in the original
-COBOL code.  This is another reason why this is mainly a tool to
-better understand COBOL code, not a tool to translate it fully.
+Yes, unfortunately it often will.  There are pathological cases which
+cannot be resolved in a structured way (see
+e.g. `test/crossedbranches.cbl`), but the the trade-off mentioned
+above will also keep some gotos in more complex code, and maybe even
+add labels that aren't in the original COBOL code.  This is another
+reason why this is mainly a tool to better understand COBOL code, not
+a tool to translate it fully.
 
 
 # License
